@@ -14,7 +14,5 @@ int main(int argc, char *argv[])
 
     string s;
     m.concatenateFields(s);
-    cout <<s<< endl;
-
-    
+    cout <<s<< endl;   
 }
