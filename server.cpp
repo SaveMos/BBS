@@ -228,6 +228,23 @@ void loginThread(int socketDescriptor, bool &result, string &status)
     result = false;
     status = "Something went wrong";
 }
+
+void BBSsession(int socketDescriptor){
+    int requestType = 0;
+    while(true){
+         requestType = receiveIntegerNumber(socketDescriptor); // Get the request type from the client.
+                   
+        if (requestType == LIST_REQUEST_TYPE){
+
+        } else if (requestType == GET_REQUEST_TYPE){
+
+        } else if (requestType == ADD_REQUEST_TYPE){
+
+        } else if (requestType == LOGOUT_REQUEST_TYPE){
+        }
+    }
+}
+
 int main()
 {
     messageBBS dummy(0, "err", "err", "err");
@@ -267,6 +284,9 @@ int main()
     fd_max = request_socket;         // L'ultimo inserito è request_socket.
     int requestType = 0;
 
+    bool howItEnded = false; // It becomes true if the procedure goes fine.
+    string status = ""; // Explain the result of the procedure.
+
     while (true)
     {
         read_fs = master;
@@ -295,36 +315,24 @@ int main()
                    
                     if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
                     {
-                        cout << "Start registration" << endl;
-
-                        bool howItEnded = false; // It becomes true if the procedure goes fine.
-                        string status = "";
+                        howItEnded = false; // It becomes true if the procedure goes fine.
+                        status = ""; // Explain the result of the procedure.
                         registrationThread(new_sd, howItEnded, status);
-
-                        cout << "Registration ended" << endl;
+                        if(howItEnded){
+                            BBSsession(new_sd);
+                        }
                         continue;
                     }
 
                     if (requestType == LOGIN_REQUEST_TYPE) // Registration.
                     {
-                        cout << "Login start" << endl;
-                        bool howItEnded = false; // It becomes true if the procedure goes fine.
-                        string status = "";
+                        howItEnded = false; // It becomes true if the procedure goes fine.
+                        status = ""; // Explain the result of the procedure.
                         loginThread(new_sd, howItEnded, status);
-                        cout << "login ended" << endl;
+                        if(howItEnded){
+                            BBSsession(new_sd);
+                        }
                         continue;
-                    }
-
-                    if (requestType == LIST_REQUEST_TYPE) // Registration.
-                    {
-                    }
-
-                    if (requestType == GET_REQUEST_TYPE) // Registration.
-                    {
-                    }
-
-                    if (requestType == ADD_REQUEST_TYPE) // Registration.
-                    {
                     }
                 }
 
