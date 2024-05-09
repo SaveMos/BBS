@@ -12,7 +12,7 @@ public:
     userBBS() {}
 
     // Costruttore che inizializza nickname e passwordDigest
-    userBBS(string newNickname, string newEmail,string newPasswordDigest){
+    userBBS(string newNickname,string newPasswordDigest, string newEmail){
         this->nickname = newNickname;
         this->email = newEmail;
         this->passwordDigest = newPasswordDigest;
@@ -23,13 +23,14 @@ public:
         nickname = newNickname;
     }
 
-     void setEmail(string newEmail) {
-        this->email = newEmail;
-    }
-
     // Metodo set per impostare il valore di passwordDigest
     void setPasswordDigest(string newPasswordDigest) {
         passwordDigest = newPasswordDigest;
+    }
+
+    
+    void setEmail(string newEmail) {
+        this->email = newEmail;
     }
 
     // Metodo get per ottenere il valore di nickname
@@ -46,9 +47,16 @@ public:
         return this->passwordDigest;
     }
 
-    void concatenateFields(string &ret)
-    {
-        ret = this->nickname + "|" + this->email + "|" + this->passwordDigest + "\n";
+    void concatenateFields(string &ret){
+        ret = this->nickname +  "|"  + this->passwordDigest + "|" + this->email + "\n";
+    }
+
+    void deconcatenateAndAssign(string &input){
+        vector<string> fields;
+        deconcatenateFields(fields , input, '|');
+        this->setNickname(fields.at(0));
+        this->setPasswordDigest(fields[1]);
+        this->setEmail(fields[2]);
     }
 
     bool checkPassword(string inputPassword){

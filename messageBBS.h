@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include <utility.h>
 using namespace std;
 
 class messageBBS{
@@ -84,24 +85,9 @@ public:
         ret = to_string(this->id) + "|" + this->author + "|" + this->title + "|" + this->body + "\0";
     }
 
-    void deconcatenateFields(vector<string> &ret, string &input)
-    {
-        const char delimiter = '|';
-        size_t pos = input.find(delimiter);   // Trova la posizione del primo carattere delimitatore
-
-        while (pos != std::string::npos)
-        {
-            std::string parte = input.substr(0, pos); // Estrai la sottostringa prima del delimitatore 
-            ret.push_back(parte); // Aggiungi la parte al vettore
-            input = input.substr(pos + 1); // Rimuovi la parte estratta dalla stringa originale
-            pos = input.find(delimiter);  // Trova la posizione del prossimo carattere delimitatore
-        }
-        ret.push_back(input); // Aggiungi l'ultima parte rimanente al vettore
-    }
-
     void deconcatenateAndAssign(string &input){
         vector<string> fields;
-        this->deconcatenateFields(fields , input);
+        deconcatenateFields(fields , input, '|');
         this->setId(stoi(fields.at(0)));
         this->setAuthor(fields[1]);
         this->setTitle(fields[2]);
