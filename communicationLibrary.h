@@ -23,7 +23,7 @@
 
 // Funzione per inviare una stringa tramite un socket
 bool sendString(int socketDescriptor, std::string& message) {
-    vector<uint16_t> buffer(message.begin(), message.end()); // Converto la stringa in una sequenza di byte
+    vector<uint8_t> buffer(message.begin(), message.end()); // Converto la stringa in una sequenza di byte
     size_t length = buffer.size(); // Calcolo la lunghezza della stringa da inviare.
     // Invio la lunghezza della stringa
     if (send(socketDescriptor, &length, sizeof(length), 0) == -1) {
@@ -48,7 +48,7 @@ std::string receiveString(int socketDescriptor) {
     }
 
     // Alloco un buffer per ricevere i dati della stringa
-    vector<uint16_t> buffer(length);
+    vector<uint8_t> buffer(length);
 
     // Ricevo i dati della stringa
     if (recv(socketDescriptor, buffer.data(), length, 0) == -1) {
@@ -79,8 +79,7 @@ void receiveBBSMessage(int sd, messageBBS& message)
 void sendIntegerNumber(int sd, int mess)
 {
     uint32_t msg = htonl(mess);
-    int ret = send(sd, (void *)&msg, sizeof(uint32_t), 0);
-    if (ret < 0)
+    if (send(sd, (void *)&msg, sizeof(uint32_t), 0) < 0)
     {
         pthread_exit((void *)NULL);
     }
@@ -89,8 +88,7 @@ void sendIntegerNumber(int sd, int mess)
 int receiveIntegerNumber(int sd)
 {
     uint32_t msg = 0;
-    int ret = recv(sd, (void *)&msg, sizeof(uint32_t), 0);
-    if (ret < 0)
+    if (recv(sd, (void *)&msg, sizeof(uint32_t), 0) < 0)
     {
         return -1;
     }

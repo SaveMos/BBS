@@ -3,6 +3,7 @@
 #include "configuration.h"
 #include "utility.h"
 #include "connectionInformation.h"
+#include "security.h"
 
 #include <mutex>
 #include <vector>
@@ -69,6 +70,7 @@ bool checkUserList(string inputNickname, userBBS &us)
     const unsigned int size = userList.size();
     for (unsigned int i = 0; i < size; i++)
     {
+          cout << userList.at(i).getNickname() << " " << inputNickname << endl;
         if (userList[i].getNickname() == inputNickname)
         {
             us = userList[i];
@@ -85,6 +87,7 @@ bool checkUserList(string inputNickname)
     const unsigned int size = userList.size();
     for (unsigned int i = 0; i < size; i++)
     {
+      
         if (userList[i].getNickname() == inputNickname)
         {
             return true;
@@ -113,12 +116,12 @@ void updateUserListFile()
 
 void updateBBSFile()
 {
-    // Aggiorna il file della user list.
+    // Aggiorna il file della BBS.
 }
 
 void updateConnectionFile()
 {
-    // Aggiorna il file della user list.
+    // Aggiorna il file della connection list.
 }
 
 void registrationThread(int socketDescriptor, bool &result, string &status)
@@ -129,7 +132,7 @@ void registrationThread(int socketDescriptor, bool &result, string &status)
 
     nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
 
-    pwdRecv = usr.computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
+    pwdRecv = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
 
     if (!checkEmailFormat(emailRecv))
     {
@@ -157,7 +160,7 @@ void registrationThread(int socketDescriptor, bool &result, string &status)
         if (recvChallenge == sendChallenge)
         {
             // Challenge win!
-            userBBS userRecv(emailRecv, nickNameRecv, "");
+            userBBS userRecv(nickNameRecv, emailRecv,  "");
             userRecv.setPasswordDigest(pwdRecv);
 
             mutexUserList.lock();
@@ -184,23 +187,25 @@ void loginThread(int socketDescriptor, bool &result, string &status)
 {
     string nickNameRecv, pwdRecv; // Receiving variables.
     userBBS usr;
+    bool res = false;
 
-    nickNameRecv = receiveString(socketDescriptor);             // Receive the nickname from the client.
-    pwdRecv = usr.computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
+    nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
+    pwdRecv = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
 
+   
     if (nickNameRecv.length() == 0 || pwdRecv.length() == 0)
     {
         result = false;
         status = "ERROR - Some empty fields";
         return;
     }
-
-    mutexUserList.lock();
-    bool res = checkUserList(nickNameRecv, usr);
-    mutexUserList.unlock();
-
+   
+    res = checkUserList(nickNameRecv, usr);
+    cout << res << endl;
+  
     if (res)
     {
+        cout << "aoo" << endl;
         // Check if the nickname actually exists
         if (usr.getPasswordDigest() == pwdRecv)
         {
@@ -211,6 +216,7 @@ void loginThread(int socketDescriptor, bool &result, string &status)
 
             result = true;
             status = "Login ok!";
+            cout << "Login ok" << endl;
         }
         else
         {
@@ -257,12 +263,14 @@ int main()
 
     FD_SET(request_socket, &master); // Inserisco nel set il socket di ascolto.
     FD_SET(STANDARD_INPUT, &master); // Insert the standard input socket descriptor.
+
     fd_max = request_socket;         // L'ultimo inserito è request_socket.
     int requestType = 0;
 
     while (true)
     {
         read_fs = master;
+       // cout << "select" << endl;
         select(fd_max + 1, &read_fs, NULL, NULL, NULL);
 
         for (i = 0; i <= fd_max; i++)
@@ -274,41 +282,37 @@ int main()
                     // It is the request socket that have received the current request.
                     len = sizeof(client_addr);
 
-                    // accept the request.
-                    new_sd = accept(request_socket, (struct sockaddr *)&client_addr, (socklen_t *)&len);
+                    new_sd = accept(request_socket, (struct sockaddr *)&client_addr, (socklen_t *)&len); // The server accept the request.
 
                     FD_SET(new_sd, &master);
 
                     if (new_sd > fd_max)
-                    {
-                        fd_max = new_sd;
-                    }
-
+                            fd_max = new_sd;
+                    
+                  //  cout << "Ready to receive the request!" << endl;
                     requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
+                   // cout << "I received "<< requestType << endl; 
                    
                     if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
                     {
+                        cout << "Start registration" << endl;
 
                         bool howItEnded = false; // It becomes true if the procedure goes fine.
                         string status = "";
                         registrationThread(new_sd, howItEnded, status);
-                        /*
-                        thread thread_i(
-                            registrationThread, // The thread function.
-                            new_sd, // The socket descriptor
-                            ref(howItEnded), // The thread's id.
-                            ref(status)
-                        );
-                        threadMixer.push_back(move(thread_i)); // Add the thread descriptor to the thread descriptor vector.
-                        //thread_i.join(); // Join the ith thread.
-                        */
+
+                        cout << "Registration ended" << endl;
+                        continue;
                     }
 
                     if (requestType == LOGIN_REQUEST_TYPE) // Registration.
                     {
+                        cout << "Login start" << endl;
                         bool howItEnded = false; // It becomes true if the procedure goes fine.
                         string status = "";
                         loginThread(new_sd, howItEnded, status);
+                        cout << "login ended" << endl;
+                        continue;
                     }
 
                     if (requestType == LIST_REQUEST_TYPE) // Registration.
@@ -324,8 +328,8 @@ int main()
                     }
                 }
 
-                FD_CLR(i, &master); // Not valid socket.
-                close(i);           // Close the not valid socket.
+               FD_CLR(i, &master); // Not valid socket.
+               close(i);           // Close the not valid socket.
             }
         }
     }
