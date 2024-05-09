@@ -1,11 +1,12 @@
-
-#include "message.h"
+#include "messageBBS.h"
 #include <iostream>
+#include "utility.h"
+#include "utilityFile.h"
 using namespace std;
 
 int main(int argc, char *argv[])
 {
-    message m;
+    messageBBS m;
     uint32_t a = 32;
     m.setId(a);
     m.setTitle("Aoooo");
@@ -15,4 +16,6 @@ int main(int argc, char *argv[])
     string s;
     m.concatenateFields(s);
     cout <<s<< endl;   
+
+
 }
