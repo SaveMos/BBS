@@ -1,7 +1,6 @@
 #include "communicationLibrary.h"
-#include "userBBS.h"
 #include "configuration.h"
-#include "utility.h"
+#include "utilityFile.h"
 #include "connectionInformation.h"
 #include "security.h"
 
