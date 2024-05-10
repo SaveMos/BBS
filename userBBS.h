@@ -1,6 +1,9 @@
 #include <string>
 using namespace std;
 
+#ifndef USERBBS_H
+#define USERBBS_H
+
 class userBBS {
 private:
     string nickname;
@@ -86,3 +89,6 @@ void deconcatenateFields(vector<string> &ret, string &input){
         return inputString;
     }
 };
+
+
+#endif

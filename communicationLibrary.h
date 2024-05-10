@@ -21,6 +21,10 @@
 
 #include "messageBBS.h"
 
+#ifndef COMMUNICATIONLIBRARY_H
+#define COMMUNICATIONLIBRARY_H
+
+
 // Funzione per inviare una stringa tramite un socket
 bool sendString(int socketDescriptor, std::string& message) {
     vector<uint8_t> buffer(message.begin(), message.end()); // Converto la stringa in una sequenza di byte
@@ -97,6 +101,9 @@ int receiveIntegerNumber(int sd)
         return (int)(ntohl(msg));
     }
 }
+
+
+#endif
 /*
 
 int ricevi_intero_con_uscita(int sd)

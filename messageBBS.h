@@ -3,6 +3,9 @@
 #include "utility.h"
 using namespace std;
 
+#ifndef MESSAGEBBS_H
+#define MESSAGEBBS_H
+
 class messageBBS{
 private:
     uint32_t id;
@@ -139,3 +142,5 @@ void deconcatenateFields(vector<string> &ret, string &input){
         return this->getId() == 0;
     }
 };
+
+#endif

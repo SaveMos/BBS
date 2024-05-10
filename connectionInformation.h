@@ -27,6 +27,11 @@ public:
         this->logged = true;
     }
 
+    void refreshLogout(){
+        this->lastActivityTimeStamp = getCurrentTimestamp();
+        this->logged = false;
+    }
+
     // Metodi 'get' per ottenere i valori degli attributi
     int getSocketDescriptor() const {
         return socketDescriptor;

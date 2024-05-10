@@ -7,6 +7,9 @@
 
 using namespace std;
 
+#ifndef UTILITYFILE_H
+#define UTILITYFILE_H
+
 //deconcatenate fields of a message or user 
 void deconcatenateFields(vector<string> &ret, string &input){
 
@@ -151,3 +154,5 @@ void insertMessageInVector(vector<messageBBS>& messageList){
 
     filename.close();   //close file    
 }
+
+#endif

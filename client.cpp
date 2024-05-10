@@ -35,12 +35,13 @@ int main()
         exit(1);
     }
 
-    cout<<"************ WELCOME *************"<<endl;
+    cout<<"************ BBS *************"<<endl;
  
     string requestString = "none";
     string p_mail = "pini@gmail.com";
     string p_nick = "Pini";
     string p_pwd = "Pini";
+    int res = 0;
 
     do{
         cout<<"Insert 'reg' for register or insert 'log' for login"<<endl;
@@ -60,20 +61,44 @@ int main()
         sendIntegerNumber(sd, requestType);
     }
     else if (requestString == "log"){
-
         // Login Test
+      
         sendIntegerNumber(sd, LOGIN_REQUEST_TYPE); // I want to login, so i send 1.
         sendString(sd, p_nick);
         sendString(sd, p_pwd);
     }
 
-    close(sd);
+    res = receiveIntegerNumber(sd);
+
+    //close(sd);
 
     // The client procedure
 
-    while(true){
-        cout << "Commands:\n -List \n-Get \n-Add" << endl;
-        cin >> requestString;
+    if(res == 1){
+        if(requestString == "login"){
+            cout << "\nWelcome back!\n"<< endl;
+        }else{
+            cout << "\nWelcome!\n"<< endl;
+        }
+
+        while(true){
+            cout << "----------------------------------\nAvailable commands:\n1)list\n2)get\n3)add\n4)logout\n\nDigit the wanted operation...\n----------------------------------" << endl;
+            cin >> requestString; // Receive the type of operation wanted
+
+            if(requestString == "logout"){
+                sendIntegerNumber(sd , LOGOUT_REQUEST_TYPE);
+                cout << "Bye bye!\n----------------------------------" << endl;
+                //close(sd);
+                return 0;
+            }
+
+        }
+    }else{
+        if(res == -1){
+            cout << "\nWrong Password!\n"<< endl;
+        }else{
+            cout << "\nSomething went wrong!\n"<< endl;
+        }
     }
 
     return 0;

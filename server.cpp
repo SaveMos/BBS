@@ -7,7 +7,6 @@
 #include <mutex>
 #include <vector>
 #include <thread>
-
 #include <iostream>
 
 #define MAXIMUM_NUMBER_OF_MESSAGES 2000
@@ -32,7 +31,7 @@ vector<connectionInformation> connections;
 
 string List(int n)
 {
-    string listed;
+    string listed = "";
     mutexBBS.lock();
     for (uint32_t i = 0; i < n; i++)
     {
@@ -46,7 +45,7 @@ messageBBS Get(int mid)
 {
     if (mid <= 0 || mid > id_tracker)
     {
-        return messageBoard[0];
+        return messageBoard[0]; // not valid id.
     }
     mutexBBS.lock();
     return messageBoard[mid];
@@ -65,45 +64,56 @@ void Add(string title, string author, string body)
 
 bool checkUserList(string inputNickname, userBBS &us)
 {
+    bool res = false;
     mutexUserList.lock();
     const unsigned int size = userList.size();
     for (unsigned int i = 0; i < size; i++)
     {
-          cout << userList.at(i).getNickname() << " " << inputNickname << endl;
+        //cout << userList.at(i).getNickname() << " " << inputNickname << endl;
         if (userList[i].getNickname() == inputNickname)
         {
             us = userList[i];
-            return true;
+            res= true;
+            break;
         }
     }
     mutexUserList.unlock();
-    return false;
+    return res;
+    
 }
 
 bool checkUserList(string inputNickname)
 {
+    bool res = false;
     mutexUserList.lock();
     const unsigned int size = userList.size();
     for (unsigned int i = 0; i < size; i++)
     {
-      
         if (userList[i].getNickname() == inputNickname)
         {
-            return true;
+            res = true;
+            break;
         }
     }
     mutexUserList.unlock();
-    return false;
+    return res;
 }
 
-void refreshConnectionInformation(string inputNickname, int sd)
+void refreshConnectionInformation(string inputNickname, int sd , string type)
 {
-    unsigned int size = connections.size();
+    const unsigned int size = connections.size();
     for (unsigned int i = 0; i < size; i++)
     {
         if (connections[i].getNickname() == inputNickname)
         {
-            connections[i].refreshLogin(sd);
+            if(type == "login"){
+                connections[i].refreshLogin(sd);
+                break;
+            } else if (type == "logout"){
+                connections[i].refreshLogout();
+                break;
+
+            }
         }
     }
 }
@@ -176,10 +186,13 @@ void registrationThread(int socketDescriptor, bool &result, string &status)
 
             result = true;
             status = "User registered!";
+            sendIntegerNumber(socketDescriptor , 1);
+            return;
         }
     }
     result = false;
     status = "Something went wrong";
+    sendIntegerNumber(socketDescriptor , 0);
 }
 
 void loginThread(int socketDescriptor, bool &result, string &status)
@@ -200,32 +213,33 @@ void loginThread(int socketDescriptor, bool &result, string &status)
     }
    
     res = checkUserList(nickNameRecv, usr);
-    cout << res << endl;
-  
+ 
     if (res)
     {
-        cout << "aoo" << endl;
         // Check if the nickname actually exists
         if (usr.getPasswordDigest() == pwdRecv)
         {
             mutexConnections.lock();
-            refreshConnectionInformation(nickNameRecv, socketDescriptor);
+            refreshConnectionInformation(nickNameRecv, socketDescriptor, "login");
             updateConnectionFile();
             mutexConnections.unlock();
-
+            
             result = true;
             status = "Login ok!";
-            cout << "Login ok" << endl;
+            sendIntegerNumber(socketDescriptor , 1);
+            return;
         }
         else
         {
-
             result = false;
             status = "Wrong password";
+            sendIntegerNumber(socketDescriptor , -1);
+            return;
         }
     }
     result = false;
     status = "Something went wrong";
+    sendIntegerNumber(socketDescriptor , 0);
 }
 
 void BBSsession(int socketDescriptor){
@@ -240,6 +254,11 @@ void BBSsession(int socketDescriptor){
         } else if (requestType == ADD_REQUEST_TYPE){
 
         } else if (requestType == LOGOUT_REQUEST_TYPE){
+            mutexConnections.lock();
+            refreshConnectionInformation(nickNameRecv, socketDescriptor, "logout");
+            updateConnectionFile();
+            mutexConnections.unlock();
+            return;
         }
     }
 }
@@ -264,10 +283,13 @@ int main()
     my_addr.sin_addr.s_addr = INADDR_ANY;             // Si ascolta su tutte le interfacce di rete della Macchina.
     inet_pton(AF_INET, SERVER_IP, &my_addr.sin_addr);
 
+    cout << "Binding..." << endl;
     ret = bind(request_socket, (struct sockaddr *)&my_addr, sizeof(my_addr)); // The binding operation.
+    cout << "Binding ok!" << endl;
 
     ret = listen(request_socket, MAXIMUM_REQUEST_NUMBER); // Put the socket in the listening state.
 
+    cout << "Listening..." << endl;
     if (ret == -1)
     {
         perror("SERVER ERROR: Error in the listen!\n");
@@ -308,9 +330,7 @@ int main()
                     if (new_sd > fd_max)
                             fd_max = new_sd;
                     
-                  //  cout << "Ready to receive the request!" << endl;
                     requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
-                   // cout << "I received "<< requestType << endl; 
                    
                     if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
                     {
@@ -320,10 +340,10 @@ int main()
                         if(howItEnded){
                             BBSsession(new_sd);
                         }
+                       // close(new_sd);
                         continue;
-                    }
-
-                    if (requestType == LOGIN_REQUEST_TYPE) // Registration.
+                     }
+                      if (requestType == LOGIN_REQUEST_TYPE) // Registration.
                     {
                         howItEnded = false; // It becomes true if the procedure goes fine.
                         status = ""; // Explain the result of the procedure.
@@ -331,6 +351,7 @@ int main()
                         if(howItEnded){
                             BBSsession(new_sd);
                         }
+                       // close(new_sd);
                         continue;
                     }
                 }
