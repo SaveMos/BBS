@@ -123,7 +123,7 @@ int main()
                 do{
                     cout << "Insert the body of the post: ";
                     body = insertLineFromKeyboard();
-                }while(body.lenght() == 0);
+                }while(body.length() == 0);
             
                 sendIntegerNumber(sd , ADD_REQUEST_TYPE); // We want to add a new post.
                 sendString(sd , title+'-'+body); // Send the content of the post.
