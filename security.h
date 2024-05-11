@@ -1,26 +1,31 @@
 
 #include <string>
 #include <openssl/sha.h>
+#include <openssl/evp.h>
 #include <iomanip>
 #include <sstream>
 using namespace std;
 
 string computeHash(string input){
-    return input;
-
-    // Buffer per contenere l'hash
+    
+    //initialize EVP for hashing
+    EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+    const EVP_MD* md = EVP_sha256();
+    //buffer to contain the hash
     unsigned char hash[SHA256_DIGEST_LENGTH];
 
-    // Calcola l'hash SHA-256 della stringa di input
-    SHA256_CTX sha256;
-    SHA256_Init(&sha256);
-    SHA256_Update(&sha256, input.c_str(), input.length());
-    SHA256_Final(hash, &sha256);
+    //compute the hash of the input string
+    EVP_DigestInit_ex(mdctx, md, NULL);
+    EVP_DigestUpdate(mdctx, input.c_str(), input.length());
+    EVP_DigestFinal_ex(mdctx, hash, NULL);
 
-    // Converti l'hash binario in una stringa esadecimale
-    std::stringstream ss;
+    //free the memory used for EVP
+    EVP_MD_CTX_free(mdctx);
+
+    //convert the binary hash in a hexadecimal string    
+    stringstream ss;
     for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
-        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
+        ss << hex << setw(2) << setfill('0') << static_cast<int>(hash[i]);
     }
     return ss.str();
 
