@@ -13,7 +13,7 @@ using namespace std;
 //deconcatenate fields of a message or user 
 void deconcatenateFields(vector<string> &ret, string &input){
 
-    char delimiter = ' ';
+    char delimiter = '-';
         
     size_t pos = input.find(delimiter);   // Find the position of the first delimiter character
 
@@ -37,10 +37,10 @@ void clearFileContent(const string& filename) {
     }
 }
 
-//insert the user inside the file of users
+//insert all the users inside the file of users
 void insertUserInFile(vector<userBBS> userList){
    
-    string filename("userFile.txt");
+    string filename("fileStorage/userFile.txt");
     //delete the content of the entire file
     clearFileContent(filename);          
 
@@ -50,7 +50,7 @@ void insertUserInFile(vector<userBBS> userList){
     if (userFile.is_open()) {
         //ad a row in the file for each user
         for(int i = 0; i < userList.size(); i++){
-            userFile << userList.at(i).getNickname() + " " +  userList.at(i).getPasswordDigest() + " " + userList.at(i).getEmail() << endl;
+            userFile << userList.at(i).getNickname() + "-" +  userList.at(i).getPasswordDigest() + "-" + userList.at(i).getEmail() << endl;
         }
        
     } else {
@@ -63,7 +63,7 @@ void insertUserInFile(vector<userBBS> userList){
 //insert all the users from the file into the vector
 void insertUserInVector(vector<userBBS>& userList){
    
-    ifstream filename("userFile.txt");
+    ifstream filename("fileStorage/userFile.txt");
     
    if (filename.is_open()) {
 
@@ -92,10 +92,10 @@ void insertUserInVector(vector<userBBS>& userList){
     filename.close();    //close file   
 }
 
-//insert the message inside the file of messages
+//insert all the messages inside the file of messages
 void insertMessageInFile(vector<messageBBS> messageList){
    
-    string filename("messageFile.txt");
+    string filename("fileStorage/messageFile.txt");
      //delete the content of the entire file
     clearFileContent(filename);          
 
@@ -105,7 +105,7 @@ void insertMessageInFile(vector<messageBBS> messageList){
     if (messageFile.is_open()) {
          //ad a row in the file for each message
         for(int i=0; i<messageList.size(); i++){
-            messageFile << messageList.at(i).getId() + " " +  messageList.at(i).getAuthor() + " " + messageList.at(i).getTitle() + " " + messageList.at(i).getBody()<< endl;
+            messageFile << to_string(messageList.at(i).getId()) + "-" +  messageList.at(i).getAuthor() + "-" + messageList.at(i).getTitle() + "-" + messageList.at(i).getBody()<< endl;
         }
        
     } else {
@@ -118,7 +118,7 @@ void insertMessageInFile(vector<messageBBS> messageList){
 //insert all the messages from the file into the vector
 void insertMessageInVector(vector<messageBBS>& messageList){
    
-    ifstream filename("messageFile.txt");
+    ifstream filename("fileStorage/messageFile.txt");
     
    if (filename.is_open()) {
 
