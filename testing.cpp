@@ -1,6 +1,8 @@
 #include <iostream>
-#include "utilityFile.h"
 #include <string>
+#include "utilityFile.h"
+#include "security.h"
+
 using namespace std;
 
 int main(int argc, char *argv[])
@@ -75,7 +77,12 @@ int main(int argc, char *argv[])
         }else{
             cout<<"email non corretta!"<<endl;
         }
-        
+
     }
+
+    //test hash
+    string input = "Hello, world!";
+    string hash = computeHash(input);
+    cout << "Hash SHA-256 di '" << input << "': " << hash << std::endl;
 
 }
