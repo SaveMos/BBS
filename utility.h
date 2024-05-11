@@ -2,6 +2,7 @@
 #include <vector>
 #include <iostream>
 #include <limits>
+#include <regex>
 
 using namespace std;
 
@@ -9,7 +10,11 @@ using namespace std;
 #define UTILITY_H
 
 bool checkEmailFormat(string emailRecv){
-    return true;
+    //regular expression for the email format
+    regex emailRegex(R"(\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b)");
+
+    //check the received string with the regex
+    return regex_match(emailRecv, emailRegex);
 }
 
 vector<string> divideString(string input , char delimiter = '-') {

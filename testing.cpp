@@ -1,5 +1,6 @@
 #include <iostream>
 #include "utilityFile.h"
+#include <string>
 using namespace std;
 
 int main(int argc, char *argv[])
@@ -63,6 +64,18 @@ int main(int argc, char *argv[])
         cout<<to_string(messageList1.at(i).getId())+" "+messageList1.at(i).getAuthor()+" "+messageList1.at(i).getTitle()+" "+messageList1.at(i).getBody()<<endl;
     }
 
-    
+    //test checkEmailFormat
+    string email;
+    for(int i = 0; i <5; i++){
+        cout<<"inserisci email: "<<endl;
+        cin>>email;
+
+        if(checkEmailFormat(email)){
+            cout<<"email corretta!"<<endl;
+        }else{
+            cout<<"email non corretta!"<<endl;
+        }
+        
+    }
 
 }
