@@ -26,7 +26,7 @@
 
 
 // Funzione per inviare una stringa tramite un socket
-bool sendString(int socketDescriptor, std::string& message) {
+bool sendString(int socketDescriptor, string message) {
     vector<uint8_t> buffer(message.begin(), message.end()); // Converto la stringa in una sequenza di byte
     size_t length = buffer.size(); // Calcolo la lunghezza della stringa da inviare.
     // Invio la lunghezza della stringa

@@ -137,7 +137,7 @@ void deconcatenateFields(vector<string> &ret, string &input){
         string ret = this->getAuthor() + " - " + this->getTitle() + "\n" + this->getBody() + "\n" + "\n";  
         return ret;
     }
-
+    
     bool invalidMessage(){
         return this->getId() == 0;
     }

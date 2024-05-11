@@ -32,34 +32,96 @@ vector<connectionInformation> connections;
 string List(int n)
 {
     string listed = "";
-    mutexBBS.lock();
-    for (uint32_t i = 0; i < n; i++)
+    if (n <= 0)
     {
-        listed += messageBoard[id_tracker - i].toListed();
+        return listed;
+    }
+    mutexBBS.lock();
+    if (numberOfMessages < n)
+    {
+        n = numberOfMessages;
+    }
+
+    uint32_t id = 0, i;
+    for (i = 0; i < n; i++)
+    {
+        id = messageBoard[id_tracker - i].getId();
+        if (id == 0)
+        {
+            continue; // Not valid post, so we go on.
+        }
+        listed += to_string(id) + " - " + messageBoard[id_tracker - i].getTitle() + '\n';
     }
     mutexBBS.unlock();
+
+    if (listed == "")
+    {
+        listed = "No available messages";
+    }
     return listed;
 }
 
 messageBBS Get(int mid)
 {
+    messageBBS m;
+    mutexBBS.lock();
     if (mid <= 0 || mid > id_tracker)
     {
-        return messageBoard[0]; // not valid id.
+        m = messageBoard[0]; // not valid id.
     }
-    mutexBBS.lock();
-    return messageBoard[mid];
+    else
+    {
+        if (messageBoard[mid].getId() == 0)
+        {
+            m = messageBoard[0]; // not valid message.
+        }
+        else
+        {
+            m = messageBoard[mid];
+        }
+    }
     mutexBBS.unlock();
+
+    return m;
 }
 
 void Add(string title, string author, string body)
 {
     messageBBS m(0, author, title, body);
     mutexBBS.lock();
-    id_tracker++;
+    id_tracker++;       // Autoincremental id.
+    numberOfMessages++; // We got a new message in the board.
     m.setId(id_tracker);
-    messageBoard.push_back(m);
+    insertNewMessage(m);
     mutexBBS.unlock();
+}
+
+void insertNewMessage(messageBBS m, int mode = 0)
+{
+    // This function should insert the message in the perfect spot.
+    if (mode == 0)
+    {
+        messageBoard.push_back(m); // Insert the new message in the back.
+    }
+}
+
+void Remove(uint32_t id)
+{
+    // To do.
+    mutexBBS.lock();
+    //numberOfMessages--;           // We got a new message in the board.
+    messageBoard.at(id).setId(0); // Invalidate the message
+    mutexBBS.unlock();
+}
+
+void periodicCheckOfTheBoard()
+{
+    // This function should check for delete non valid messages.
+}
+
+void periodicCheckOfTheConnectionsList()
+{
+    // This function should delete the too old connection object of the users.
 }
 
 bool checkUserList(string inputNickname, userBBS &us)
@@ -69,17 +131,16 @@ bool checkUserList(string inputNickname, userBBS &us)
     const unsigned int size = userList.size();
     for (unsigned int i = 0; i < size; i++)
     {
-        //cout << userList.at(i).getNickname() << " " << inputNickname << endl;
+        // cout << userList.at(i).getNickname() << " " << inputNickname << endl;
         if (userList[i].getNickname() == inputNickname)
         {
             us = userList[i];
-            res= true;
+            res = true;
             break;
         }
     }
     mutexUserList.unlock();
     return res;
-    
 }
 
 bool checkUserList(string inputNickname)
@@ -99,20 +160,22 @@ bool checkUserList(string inputNickname)
     return res;
 }
 
-void refreshConnectionInformation(string inputNickname, int sd , string type)
+void refreshConnectionInformation(string inputNickname, int sd, string type)
 {
     const unsigned int size = connections.size();
     for (unsigned int i = 0; i < size; i++)
     {
         if (connections[i].getNickname() == inputNickname)
         {
-            if(type == "login"){
+            if (type == "login")
+            {
                 connections[i].refreshLogin(sd);
                 break;
-            } else if (type == "logout"){
+            }
+            else if (type == "logout")
+            {
                 connections[i].refreshLogout();
                 break;
-
             }
         }
     }
@@ -133,7 +196,7 @@ void updateConnectionFile()
     // Aggiorna il file della connection list.
 }
 
-void registrationThread(int socketDescriptor, bool &result, string &status)
+void registrationThread(int socketDescriptor, bool &result, string &status, string &nickName)
 {
     string emailRecv, nickNameRecv, pwdRecv; // Receiving variables.
 
@@ -169,7 +232,7 @@ void registrationThread(int socketDescriptor, bool &result, string &status)
         if (recvChallenge == sendChallenge)
         {
             // Challenge win!
-            userBBS userRecv(nickNameRecv, emailRecv,  "");
+            userBBS userRecv(nickNameRecv, emailRecv, "");
             userRecv.setPasswordDigest(pwdRecv);
 
             mutexUserList.lock();
@@ -186,74 +249,90 @@ void registrationThread(int socketDescriptor, bool &result, string &status)
 
             result = true;
             status = "User registered!";
-            sendIntegerNumber(socketDescriptor , 1);
+            sendIntegerNumber(socketDescriptor, 1);
             return;
         }
     }
     result = false;
     status = "Something went wrong";
-    sendIntegerNumber(socketDescriptor , 0);
+    sendIntegerNumber(socketDescriptor, 0);
 }
 
-void loginThread(int socketDescriptor, bool &result, string &status)
+void loginThread(int socketDescriptor, bool &result, string &status, string &nickName)
 {
     string nickNameRecv, pwdRecv; // Receiving variables.
     userBBS usr;
     bool res = false;
 
-    nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
+    nickNameRecv = receiveString(socketDescriptor);         // Receive the nickname from the client.
     pwdRecv = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
 
-   
     if (nickNameRecv.length() == 0 || pwdRecv.length() == 0)
     {
         result = false;
         status = "ERROR - Some empty fields";
         return;
     }
-   
+
     res = checkUserList(nickNameRecv, usr);
- 
+
     if (res)
     {
         // Check if the nickname actually exists
         if (usr.getPasswordDigest() == pwdRecv)
         {
+            // if the password of the choosen nickname is correct.
             mutexConnections.lock();
             refreshConnectionInformation(nickNameRecv, socketDescriptor, "login");
             updateConnectionFile();
             mutexConnections.unlock();
-            
+
             result = true;
             status = "Login ok!";
-            sendIntegerNumber(socketDescriptor , 1);
+            sendIntegerNumber(socketDescriptor, 1);
+
+            nickName = nickNameRecv;
             return;
         }
         else
         {
             result = false;
             status = "Wrong password";
-            sendIntegerNumber(socketDescriptor , -1);
+            sendIntegerNumber(socketDescriptor, -1);
             return;
         }
     }
     result = false;
     status = "Something went wrong";
-    sendIntegerNumber(socketDescriptor , 0);
+    sendIntegerNumber(socketDescriptor, 0);
 }
 
-void BBSsession(int socketDescriptor){
+void BBSsession(int socketDescriptor, string nickNameRecv)
+{
     int requestType = 0;
-    while(true){
-         requestType = receiveIntegerNumber(socketDescriptor); // Get the request type from the client.
-                   
-        if (requestType == LIST_REQUEST_TYPE){
+    while (true)
+    {
+        requestType = receiveIntegerNumber(socketDescriptor); // Get the request type from the client.
 
-        } else if (requestType == GET_REQUEST_TYPE){
+        if (requestType == LIST_REQUEST_TYPE)
+        {
+            sendString(socketDescriptor, List(receiveIntegerNumber(socketDescriptor)));
+        }
+        else if (requestType == GET_REQUEST_TYPE)
+        {
+            sendString(socketDescriptor, Get(receiveIntegerNumber(socketDescriptor)).toListed());
+        }
+        else if (requestType == ADD_REQUEST_TYPE)
+        {
+            vector<string> requestParts = divideString(receiveString(socketDescriptor), '-');
+            // string b = requestParts[1];
+            // substituteWhiteSpaces(b , true);
 
-        } else if (requestType == ADD_REQUEST_TYPE){
-
-        } else if (requestType == LOGOUT_REQUEST_TYPE){
+            Add(requestParts[0], nickNameRecv, requestParts[1]);
+            sendIntegerNumber(socketDescriptor, 1);
+        }
+        else if (requestType == LOGOUT_REQUEST_TYPE)
+        {
             mutexConnections.lock();
             refreshConnectionInformation(nickNameRecv, socketDescriptor, "logout");
             updateConnectionFile();
@@ -267,6 +346,13 @@ int main()
 {
     messageBBS dummy(0, "err", "err", "err");
     messageBoard.push_back(dummy);
+
+    Add("Esempio1", "Esempio1", "Esempio1");
+    Add("Esempio2", "Esempio2", "Esempio2");
+    Add("Esempio3", "Esempio3", "Esempio3");
+    Add("Esempio4", "Esempio4", "Esempio4");
+    Add("Esempio5", "Esempio5", "Esempio5");
+    Add("Esempio6", "Esempio6", "Esempio6");
 
     // Variables declaration.
     int ret = 0, new_sd = 0, len = 0, i = 0;
@@ -302,16 +388,13 @@ int main()
     FD_SET(request_socket, &master); // Inserisco nel set il socket di ascolto.
     FD_SET(STANDARD_INPUT, &master); // Insert the standard input socket descriptor.
 
-    fd_max = request_socket;         // L'ultimo inserito è request_socket.
+    fd_max = request_socket; // L'ultimo inserito è request_socket.
     int requestType = 0;
-
-    bool howItEnded = false; // It becomes true if the procedure goes fine.
-    string status = ""; // Explain the result of the procedure.
 
     while (true)
     {
         read_fs = master;
-       // cout << "select" << endl;
+        // cout << "select" << endl;
         select(fd_max + 1, &read_fs, NULL, NULL, NULL);
 
         for (i = 0; i <= fd_max; i++)
@@ -328,36 +411,41 @@ int main()
                     FD_SET(new_sd, &master);
 
                     if (new_sd > fd_max)
-                            fd_max = new_sd;
-                    
+                        fd_max = new_sd;
+
                     requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
-                   
+
                     if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
                     {
-                        howItEnded = false; // It becomes true if the procedure goes fine.
-                        status = ""; // Explain the result of the procedure.
-                        registrationThread(new_sd, howItEnded, status);
-                        if(howItEnded){
-                            BBSsession(new_sd);
+                        string nickNameSession = ""; // Temporary variable that keeps the nickname of the user that have just logged in.
+                        bool howItEnded = false;     // It becomes true if the procedure goes fine.
+                        string status = "";          // Explain the result of the procedure.
+                        registrationThread(new_sd, howItEnded, status, nickNameSession);
+                        if (howItEnded)
+                        {
+                            // If the registration went fine...
+                            BBSsession(new_sd, nickNameSession); // The actual session.
                         }
-                       // close(new_sd);
+                        close(new_sd);
                         continue;
-                     }
-                      if (requestType == LOGIN_REQUEST_TYPE) // Registration.
+                    }
+                    if (requestType == LOGIN_REQUEST_TYPE) // Registration.
                     {
-                        howItEnded = false; // It becomes true if the procedure goes fine.
-                        status = ""; // Explain the result of the procedure.
-                        loginThread(new_sd, howItEnded, status);
-                        if(howItEnded){
-                            BBSsession(new_sd);
+                        string nickNameSession = ""; // Temporary variable that keeps the nickname of the user that have just logged in.
+                        bool howItEnded = false;     // It becomes true if the procedure goes fine.
+                        string status = "";          // Explain the result of the procedure.
+                        loginThread(new_sd, howItEnded, status, nickNameSession);
+                        if (howItEnded)
+                        {
+                            // If the login procedure went fine...
+                            BBSsession(new_sd, nickNameSession); // The actual session.
                         }
-                       // close(new_sd);
+                        close(new_sd);
                         continue;
                     }
                 }
-
-               FD_CLR(i, &master); // Not valid socket.
-               close(i);           // Close the not valid socket.
+                FD_CLR(i, &master); // Not valid socket.
+                close(i);           // Close the not valid socket.
             }
         }
     }
