@@ -6,7 +6,10 @@
 #include <sstream>
 using namespace std;
 
-string computeHash(string input){
+#ifndef SECURITY_H
+#define SECURITY_H
+
+string computeHash(string input, string algorithm = "SHA256"){
     
     //initialize EVP for hashing
     EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
@@ -24,9 +27,10 @@ string computeHash(string input){
 
     //convert the binary hash in a hexadecimal string    
     stringstream ss;
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
+    for (uint8_t i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
         ss << hex << setw(2) << setfill('0') << static_cast<int>(hash[i]);
     }
     return ss.str();
-
 }
+
+#endif

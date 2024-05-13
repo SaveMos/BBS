@@ -129,9 +129,9 @@ int main()
                 sendString(sd , title+'-'+body); // Send the content of the post.
                 int res = receiveIntegerNumber(sd); // Receive the result of the operation.
                 if(res == 1){
-                    cout << "Ok post inserted!" << endl;
+                    cout << "Ok the post has been inserted!" << endl;
                 }else{
-                    cout << "Something wnt wrong!" << endl;
+                    cout << "Something went wrong!" << endl;
                 }
             }
 

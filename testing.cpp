@@ -2,6 +2,7 @@
 #include <string>
 #include "utilityFile.h"
 #include "security.h"
+#include "timestampLibrary.h"
 
 using namespace std;
 
@@ -67,22 +68,12 @@ int main(int argc, char *argv[])
     }
 
     //test checkEmailFormat
-    string email;
-    for(int i = 0; i <5; i++){
-        cout<<"inserisci email: "<<endl;
-        cin>>email;
-
-        if(checkEmailFormat(email)){
-            cout<<"email corretta!"<<endl;
-        }else{
-            cout<<"email non corretta!"<<endl;
-        }
-
-    }
 
     //test hash
     string input = "Hello, world!";
     string hash = computeHash(input);
     cout << "Hash SHA-256 di '" << input << "': " << hash << std::endl;
+
+    cout << "Timestamp corrente: " << getCurrentTimestamp() << endl;
 
 }
