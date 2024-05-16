@@ -17,5 +17,4 @@
 // Other
 #define STANDARD_INPUT 0
 
-
 // This file contains some common constants.
