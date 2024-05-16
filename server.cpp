@@ -85,6 +85,15 @@ messageBBS Get(int mid)
     return m;
 }
 
+void insertNewMessage(messageBBS m, int mode = 0)
+{
+    // This function should insert the message in the perfect spot.
+    if (mode == 0)
+    {
+        messageBoard.push_back(m); // Insert the new message in the back.
+    }
+}
+
 void Add(string title, string author, string body)
 {
     messageBBS m(0, author, title, body);
@@ -96,14 +105,6 @@ void Add(string title, string author, string body)
     mutexBBS.unlock();
 }
 
-void insertNewMessage(messageBBS m, int mode = 0)
-{
-    // This function should insert the message in the perfect spot.
-    if (mode == 0)
-    {
-        messageBoard.push_back(m); // Insert the new message in the back.
-    }
-}
 
 void Remove(uint32_t id)
 {
@@ -216,7 +217,7 @@ void registrationThread(int socketDescriptor, bool &result, string &status, stri
     if (emailRecv.length() == 0 || nickNameRecv.length() == 0 || pwdRecv.length() == 0)
     {
         result = false;
-        status = "ERROR - Some empty fields";
+        status = "ERROR - Some empty fields!";
         return;
     }
 
@@ -254,7 +255,7 @@ void registrationThread(int socketDescriptor, bool &result, string &status, stri
         }
     }
     result = false;
-    status = "Something went wrong";
+    status = "Something went wrong!";
     sendIntegerNumber(socketDescriptor, 0);
 }
 
@@ -270,7 +271,7 @@ void loginThread(int socketDescriptor, bool &result, string &status, string &nic
     if (nickNameRecv.length() == 0 || pwdRecv.length() == 0)
     {
         result = false;
-        status = "ERROR - Some empty fields";
+        status = "ERROR - Some empty fields!";
         return;
     }
 
@@ -297,13 +298,13 @@ void loginThread(int socketDescriptor, bool &result, string &status, string &nic
         else
         {
             result = false;
-            status = "Wrong password";
+            status = "Wrong password!";
             sendIntegerNumber(socketDescriptor, -1);
             return;
         }
     }
     result = false;
-    status = "Something went wrong";
+    status = "Something went wrong!";
     sendIntegerNumber(socketDescriptor, 0);
 }
 
@@ -325,9 +326,7 @@ void BBSsession(int socketDescriptor, string nickNameRecv)
         else if (requestType == ADD_REQUEST_TYPE)
         {
             vector<string> requestParts = divideString(receiveString(socketDescriptor), '-');
-            // string b = requestParts[1];
-            // substituteWhiteSpaces(b , true);
-
+        
             Add(requestParts[0], nickNameRecv, requestParts[1]);
             sendIntegerNumber(socketDescriptor, 1);
         }

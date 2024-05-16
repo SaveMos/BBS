@@ -8,6 +8,7 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
+    /*
     messageBBS m;
     uint32_t a = 32;
     m.setId(a);
@@ -73,7 +74,10 @@ int main(int argc, char *argv[])
     string input = "Hello, world!";
     string hash = computeHash(input);
     cout << "Hash SHA-256 di '" << input << "': " << hash << std::endl;
-
+    */
     cout << "Timestamp corrente: " << getCurrentTimestamp() << endl;
+    
+
+    cout << secondDifference("2024-05-16 09:53:10.222" , "2024-05-16 09:53:15.222") << endl;
 
 }
