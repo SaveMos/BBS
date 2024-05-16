@@ -155,4 +155,19 @@ void insertMessageInVector(vector<messageBBS>& messageList){
     filename.close();   //close file    
 }
 
+
+std::string readMessagesFromFile(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file) {
+        std::cerr << "Unable to open file: " << filename << std::endl;
+        return "";
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    
+    file.close();
+    return buffer.str();
+}
+
 #endif

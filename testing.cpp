@@ -79,4 +79,23 @@ int main(int argc, char *argv[])
     cout << "Timestamp corrente: " << getCurrentTimestamp() << endl;
     cout << secondDifference("2024-05-16 09:53:10.222" , "2024-05-16 09:53:15.222") << endl;
 
+    string content = readMessagesFromFile("fileStorage/messageFile.txt");
+    cout << content << endl;
+
+    vector<string> messages = divideString(content,'|');
+
+
+    messageBBS m;
+    for(int i = 0; i < messages.size(); i++){
+        cout << messages[i] << endl;
+        m.deconcatenateAndAssign(messages[i]);
+
+        cout << m.getId() << endl;
+        cout << m.getAuthor() << endl;
+        cout << m.getTitle() << endl;
+        cout << m.getBody() << endl;
+    }
+
+
+
 }

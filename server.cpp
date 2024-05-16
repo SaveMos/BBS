@@ -196,6 +196,16 @@ void updateConnectionFile()
     // Aggiorna il file della connection list.
 }
 
+void updateBBSMessageListFromFile(){  
+    vector<string> messages = divideString(readMessagesFromFile("fileStorage/messageFile.txt"),'|');
+    const unsigned int size = messages.size();
+    messageBBS m;
+    for(unsigned int i = 0; i < size; i++){
+        m.deconcatenateAndAssign(messages[i]);
+        Add(m.getTitle(), m.getAuthor() , m.getBody());
+    }
+}
+
 void registrationThread(int socketDescriptor, bool &result, string &status, string &nickName)
 {
     string emailRecv, nickNameRecv, pwdRecv; // Receiving variables.
@@ -346,12 +356,7 @@ int main()
     messageBBS dummy(0, "err", "err", "err");
     messageBoard.push_back(dummy);
 
-    Add("Esempio1", "Esempio1", "Esempio1");
-    Add("Esempio2", "Esempio2", "Esempio2");
-    Add("Esempio3", "Esempio3", "Esempio3");
-    Add("Esempio4", "Esempio4", "Esempio4");
-    Add("Esempio5", "Esempio5", "Esempio5");
-    Add("Esempio6", "Esempio6", "Esempio6");
+    updateBBSMessageListFromFile();
 
     // Variables declaration.
     int ret = 0, new_sd = 0, len = 0, i = 0;

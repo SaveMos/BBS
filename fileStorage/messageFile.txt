@@ -1,3 +1,1 @@
-192-Alice-Message 1-This is the body of message 1
-287-Bob-Message 2-This is the body of message 2
-337-Charlie-Message 3-This is the body of message 3
+0-Alice-Message 1-This is the body of message 1|1-Bob-Message 2-This is the body of message 2|2-Charlie-Message 3-This is the body of message 3

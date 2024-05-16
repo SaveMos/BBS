@@ -14,21 +14,13 @@ bool checkEmailFormat(string emailRecv){
     return regex_match(emailRecv, emailRegex);  //check the received string with the regex
 }
 
-vector<string> divideString(string input , char delimiter = '-') {
+std::vector<std::string> divideString(const std::string& str, char delimiter = '-') {
     std::vector<std::string> result;
-    std::string part;
+    std::stringstream ss(str);
+    std::string item;
     
-    // Trova la posizione del carattere '-'
-    size_t dashPos = input.find(delimiter);
-
-    if (dashPos != std::string::npos) { // Se il carattere '-' è stato trovato
-        // Prende la sottostringa prima del carattere '-' e la aggiunge al vettore
-        result.push_back(input.substr(0, dashPos));
-
-        // Prende la sottostringa dopo il carattere '-' e la aggiunge al vettore
-        result.push_back(input.substr(dashPos + 1));
-    } else { // Se non c'è il carattere '-', restituisce la stringa originale come unico elemento del vettore
-        result.push_back(input);
+    while (std::getline(ss, item, delimiter)) {
+        result.push_back(item);
     }
 
     return result;
@@ -43,15 +35,9 @@ void substituteWhiteSpaces(string& input, bool to_from){
             input.at(i) = ' ';
         }
     }
-
 }
 
 string insertLineFromKeyboard(){
-    /*
-    string body = "";
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Pulisce il buffer di input
-    std::getline(std::cin, body); // Legge una linea di input, inclusi gli spazi bianchi
-    */
     std::string body;
     std::getline(std::cin, body);
     return body;
