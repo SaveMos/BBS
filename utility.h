@@ -47,9 +47,13 @@ void substituteWhiteSpaces(string& input, bool to_from){
 }
 
 string insertLineFromKeyboard(){
+    /*
     string body = "";
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Pulisce il buffer di input
     std::getline(std::cin, body); // Legge una linea di input, inclusi gli spazi bianchi
+    */
+    std::string body;
+    std::getline(std::cin, body);
     return body;
 }
 

@@ -9,7 +9,6 @@
 #include <thread>
 #include <iostream>
 
-#define MAXIMUM_NUMBER_OF_MESSAGES 2000
 #define MAXIMUM_NUMBER_OF_THREAD 100
 #define MAXIMUM_REQUEST_NUMBER 1000
 
@@ -110,7 +109,7 @@ void Remove(uint32_t id)
 {
     // To do.
     mutexBBS.lock();
-    //numberOfMessages--;           // We got a new message in the board.
+    numberOfMessages--;           // We got a new message in the board.
     messageBoard.at(id).setId(0); // Invalidate the message
     mutexBBS.unlock();
 }
@@ -251,6 +250,7 @@ void registrationThread(int socketDescriptor, bool &result, string &status, stri
             result = true;
             status = "User registered!";
             sendIntegerNumber(socketDescriptor, 1);
+            nickName = nickNameRecv; // save the nickname for later.
             return;
         }
     }
@@ -326,7 +326,7 @@ void BBSsession(int socketDescriptor, string nickNameRecv)
         else if (requestType == ADD_REQUEST_TYPE)
         {
             vector<string> requestParts = divideString(receiveString(socketDescriptor), '-');
-        
+            cout << "nickname: " << nickNameRecv << endl;
             Add(requestParts[0], nickNameRecv, requestParts[1]);
             sendIntegerNumber(socketDescriptor, 1);
         }

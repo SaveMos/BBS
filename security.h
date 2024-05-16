@@ -1,4 +1,3 @@
-
 #include <string>
 #include <openssl/sha.h>
 #include <openssl/evp.h>
@@ -34,7 +33,7 @@ string computeHash(string input, string algorithm = "SHA256"){
     return ss.str();
 }
 
-
+/*
 void provaDF(){
     char msg [] = "Hello world!";
     unsigned char* signature;
@@ -48,5 +47,6 @@ void provaDF(){
     EVP_SignFinal(ctx , signature , &signature_len , prvkey);
     
 }
+*/
 
 #endif
