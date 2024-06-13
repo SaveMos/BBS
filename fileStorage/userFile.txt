@@ -1,3 +1,1 @@
-Alice-password1-alice@example.com
-Bob-password2-bob@example.com
-Charlie-password3-charlie@example.com
+Pini-e12bcfd62592809b217c185cd548f9e38f57006c59b3ffc819d407b459c13907-

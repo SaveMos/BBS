@@ -4,6 +4,7 @@
 #include <iostream>
 #include "userBBS.h"
 #include "messageBBS.h"
+#include "connectionInformation.h"
 
 using namespace std;
 
@@ -12,9 +13,7 @@ using namespace std;
 
 //deconcatenate fields of a message or user 
 void deconcatenateFields(vector<string> &ret, string &input){
-
-    char delimiter = '-';
-        
+    char delimiter = '-';    
     size_t pos = input.find(delimiter);   // Find the position of the first delimiter character
 
     while (pos != std::string::npos){
@@ -49,7 +48,7 @@ void insertUserInFile(vector<userBBS> userList){
     
     if (userFile.is_open()) {
         //ad a row in the file for each user
-        for(int i = 0; i < userList.size(); i++){
+        for(uint64_t i = 0; i < userList.size(); i++){
             userFile << userList.at(i).getNickname() + "-" +  userList.at(i).getPasswordDigest() + "-" + userList.at(i).getEmail() << endl;
         }
        
@@ -72,6 +71,8 @@ void insertUserInVector(vector<userBBS>& userList){
        
        //for each line of the file extract all the attributes of a user and insert it into the vector
         while (getline(filename, line)) {
+
+            // Here we must decrypt the line.
 
             deconcatenateFields(ret, line);
             //assign each attribute to the user
@@ -104,7 +105,7 @@ void insertMessageInFile(vector<messageBBS> messageList){
     
     if (messageFile.is_open()) {
          //ad a row in the file for each message
-        for(int i=0; i<messageList.size(); i++){
+        for(uint64_t i=0; i<messageList.size(); i++){
             messageFile << to_string(messageList.at(i).getId()) + "-" +  messageList.at(i).getAuthor() + "-" + messageList.at(i).getTitle() + "-" + messageList.at(i).getBody()<< endl;
         }
        
@@ -128,7 +129,9 @@ void insertMessageInVector(vector<messageBBS>& messageList){
         //for each line of the file extract all the attributes of a message and insert it into the vector
         while (getline(filename, line)) {
 
-             deconcatenateFields(ret, line);
+            // Here we must decrypt the line.
+
+            deconcatenateFields(ret, line);
             
             //convert a string into a u_int32_t for the id field
             //uint32_t id;
@@ -137,7 +140,7 @@ void insertMessageInVector(vector<messageBBS>& messageList){
 
             //assign each attribute to the user
             messageBBS newMessage;
-            newMessage.setId(stoi(ret.at(0)));          //convert a string into a u_int32_t for the id field
+            newMessage.setId(stoi(ret.at(0)));  //convert a string into a u_int32_t for the id field
             newMessage.setAuthor(ret.at(1));
             newMessage.setTitle(ret.at(2));
             newMessage.setBody(ret.at(3));
@@ -154,5 +157,68 @@ void insertMessageInVector(vector<messageBBS>& messageList){
 
     filename.close();   //close file    
 }
+
+
+//insert all the messages inside the file of messages
+void insertConnectionInformationInFile(vector<connectionInformation> connList){
+    string filename("fileStorage/connectionInfo.txt");
+    clearFileContent(filename);  //delete the content of the entire file       
+
+    fstream connFile;
+    connFile.open(filename, std::fstream::app); //open the file in append
+    
+    if (connFile.is_open()) {
+         //ad a row in the file for each message
+        for(uint64_t i=0; i < connList.size(); i++){
+            connFile << 
+            to_string(connList.at(i).getSocketDescriptor()) + "-" +  
+            connList.at(i).getNickname() + "-" + 
+            connList.at(i).getLoginTimestamp() + "-" + 
+            connList.at(i).getLastActivityTimeStamp() + "-" + 
+            to_string(connList.at(i).getLogged())<< endl;
+        }
+       
+    } else {
+        cout << "Error during the file opening" << endl;
+    }
+
+    connFile.close();
+}
+
+//insert all the messages from the file into the vector
+void insertConnectionInformationInVector(vector<connectionInformation>& connList){
+    ifstream filename("fileStorage/connectionInfo.txt");
+    
+   if (filename.is_open()) {
+        string line;
+        vector<string> ret;
+       
+        //for each line of the file extract all the attributes of a message and insert it into the vector
+        while (getline(filename, line)) {
+
+            // Here we must decrypt the line.
+
+            deconcatenateFields(ret, line);
+            
+            //assign each attribute to the user
+            connectionInformation conn;
+            conn.setSocketDescriptor(stoi(ret.at(0)));  //convert a string into a u_int32_t for the id field
+            conn.setNickname(ret.at(1));
+            conn.setLoginTimestamp(ret.at(2));
+            conn.setLastActivityTimeStamp(ret.at(3));
+            conn.setLogged(stoi(ret.at(4)));
+           
+            connList.push_back(conn);  // insert inside the vector.
+
+            ret.clear();
+        }
+
+    } else {
+        cout << "Error during the file opening" << endl;
+    }
+
+    filename.close();   //close file    
+}
+
 
 #endif

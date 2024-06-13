@@ -12,6 +12,7 @@
 #define MAXIMUM_NUMBER_OF_MESSAGES 2000
 #define MAXIMUM_NUMBER_OF_THREAD 100
 #define MAXIMUM_REQUEST_NUMBER 1000
+#define SNAPSHOT_PERIOD 30
 
 using namespace std;
 // Variabili dei Threads
@@ -19,6 +20,8 @@ mutex mutexBBS;
 mutex mutexUserList;
 mutex mutexOpenSSL; // Required because OpenSSL is not thread-safe.
 mutex mutexConnections;
+
+mutex mutexFileStorage;
 
 uint32_t threadNumber = 0;
 uint32_t numberOfMessages = 0;
@@ -85,6 +88,15 @@ messageBBS Get(int mid)
     return m;
 }
 
+void insertNewMessage(messageBBS m, int mode = 0)
+{
+    // This function should insert the message in the perfect spot.
+    if (mode == 0)
+    {
+        messageBoard.push_back(m); // Insert the new message in the back.
+    }
+}
+
 void Add(string title, string author, string body)
 {
     messageBBS m(0, author, title, body);
@@ -96,20 +108,11 @@ void Add(string title, string author, string body)
     mutexBBS.unlock();
 }
 
-void insertNewMessage(messageBBS m, int mode = 0)
-{
-    // This function should insert the message in the perfect spot.
-    if (mode == 0)
-    {
-        messageBoard.push_back(m); // Insert the new message in the back.
-    }
-}
-
 void Remove(uint32_t id)
 {
     // To do.
     mutexBBS.lock();
-    //numberOfMessages--;           // We got a new message in the board.
+    // numberOfMessages--;           // We got a new message in the board.
     messageBoard.at(id).setId(0); // Invalidate the message
     mutexBBS.unlock();
 }
@@ -162,8 +165,8 @@ bool checkUserList(string inputNickname)
 
 void refreshConnectionInformation(string inputNickname, int sd, string type)
 {
-    const unsigned int size = connections.size();
-    for (unsigned int i = 0; i < size; i++)
+    const uint64_t size = connections.size();
+    for (uint64_t i = 0; i < size; i++)
     {
         if (connections[i].getNickname() == inputNickname)
         {
@@ -181,30 +184,40 @@ void refreshConnectionInformation(string inputNickname, int sd, string type)
     }
 }
 
-void updateUserListFile()
+void loadSnapshot()
 {
-    // Aggiorna il file della user list.
+    mutexFileStorage.lock();
+    insertUserInVector(userList);
+    insertMessageInVector(messageBoard);
+    insertConnectionInformationInVector(connections);
+    mutexFileStorage.unlock();
 }
 
-void updateBBSFile()
+void doSnapshot()
 {
-    // Aggiorna il file della BBS.
+    // this function updates all the files in the fileStorage.
+    mutexFileStorage.lock();
+    insertUserInFile(userList);
+    insertMessageInFile(messageBoard);
+    insertConnectionInformationInFile(connections);
+    mutexFileStorage.unlock();
 }
 
-void updateConnectionFile()
-{
-    // Aggiorna il file della connection list.
+void periodicSnaphot(){
+    while(true){
+        this_thread::sleep_for(std::chrono::seconds(SNAPSHOT_PERIOD));
+        doSnapshot();
+    }
 }
 
-void registrationThread(int socketDescriptor, bool &result, string &status, string &nickName)
+void registerationProcedure(int socketDescriptor, bool &result, string &status, string &nickName)
 {
-    string emailRecv, nickNameRecv, pwdRecv; // Receiving variables.
-
-    emailRecv = receiveString(socketDescriptor); // Receive the email from the client.
-
-    nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
-
-    pwdRecv = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
+    const string emailRecv = receiveString(socketDescriptor); // Receive the email from the client.
+    cout << emailRecv << endl;
+    const string nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
+    cout << nickNameRecv << endl;
+    const string pwdRecv = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
+    cout << pwdRecv << endl;
 
     if (!checkEmailFormat(emailRecv))
     {
@@ -237,14 +250,12 @@ void registrationThread(int socketDescriptor, bool &result, string &status, stri
 
             mutexUserList.lock();
             userList.push_back(userRecv);
-            updateUserListFile();
             mutexUserList.unlock();
 
             connectionInformation c(socketDescriptor, nickNameRecv, getCurrentTimestamp(), getCurrentTimestamp(), true);
 
             mutexConnections.lock();
             connections.push_back(c);
-            updateConnectionFile();
             mutexConnections.unlock();
 
             result = true;
@@ -258,7 +269,7 @@ void registrationThread(int socketDescriptor, bool &result, string &status, stri
     sendIntegerNumber(socketDescriptor, 0);
 }
 
-void loginThread(int socketDescriptor, bool &result, string &status, string &nickName)
+void loginProcedure(int socketDescriptor, bool &result, string &status, string &nickName)
 {
     string nickNameRecv, pwdRecv; // Receiving variables.
     userBBS usr;
@@ -284,7 +295,6 @@ void loginThread(int socketDescriptor, bool &result, string &status, string &nic
             // if the password of the choosen nickname is correct.
             mutexConnections.lock();
             refreshConnectionInformation(nickNameRecv, socketDescriptor, "login");
-            updateConnectionFile();
             mutexConnections.unlock();
 
             result = true;
@@ -335,118 +345,130 @@ void BBSsession(int socketDescriptor, string nickNameRecv)
         {
             mutexConnections.lock();
             refreshConnectionInformation(nickNameRecv, socketDescriptor, "logout");
-            updateConnectionFile();
             mutexConnections.unlock();
-            return;
+            break;
         }
+    }
+
+    doSnapshot();
+}
+
+void threadServerCode(int new_sd)
+{
+    string nickNameSession = "";                          // Temporary variable that keeps the nickname of the user that have just logged in.
+    bool howItEnded = false;                              // It becomes true if the procedure goes fine.
+    string status = "";                                   // Explain the result of the procedure.
+    const int requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
+
+    if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
+    {
+        registerationProcedure(new_sd, howItEnded, status, nickNameSession);
+        if (howItEnded)
+        {
+            // If the registration went fine...
+            BBSsession(new_sd, nickNameSession); // The actual session.
+        }
+        close(new_sd);
+    }
+    else if (requestType == LOGIN_REQUEST_TYPE) // Registration.
+    {
+
+        loginProcedure(new_sd, howItEnded, status, nickNameSession);
+        if (howItEnded)
+        {
+            // If the login procedure went fine...
+            BBSsession(new_sd, nickNameSession); // The actual session.
+        }
+        close(new_sd);
     }
 }
 
+
 int main()
 {
-    messageBBS dummy(0, "err", "err", "err");
-    messageBoard.push_back(dummy);
+    int serverSocket, clientSocket, maxFd, activity;
+    sockaddr_in serverAddr, clientAddr;
+    socklen_t clientAddrSize = sizeof(clientAddr);
+    fd_set readFds;
+    std::vector<std::thread> threads;
+    std::mutex clientSocketsMutex; // Mutex for synchronizing access to clientSockets vector.
 
-    Add("Esempio1", "Esempio1", "Esempio1");
-    Add("Esempio2", "Esempio2", "Esempio2");
-    Add("Esempio3", "Esempio3", "Esempio3");
-    Add("Esempio4", "Esempio4", "Esempio4");
-    Add("Esempio5", "Esempio5", "Esempio5");
-    Add("Esempio6", "Esempio6", "Esempio6");
+    loadSnapshot();
 
-    // Variables declaration.
-    int ret = 0, new_sd = 0, len = 0, i = 0;
-    int request_socket = 0; // Listening socket.
-    struct sockaddr_in my_addr, client_addr;
-    int fd_max = 0; // Maximum descriptor.
-    fd_set read_fs; // Set of copy sockets.
-    fd_set master;  // Set of the main sockets.
+    thread snapshotter(periodicSnaphot);
+    snapshotter.detach();
 
-    request_socket = socket(AF_INET, SOCK_STREAM, 0); // Creo un socket TCP di ascolto per il Server.
-    memset(&my_addr, 0, sizeof(my_addr));             // Pulisco la zona di memoria.
-    my_addr.sin_family = AF_INET;                     // La famiglia dell'indirizzo IP del mio server.
-    my_addr.sin_port = htons(SERVER_PORT);            // The server port.
-    my_addr.sin_addr.s_addr = INADDR_ANY;             // Si ascolta su tutte le interfacce di rete della Macchina.
-    inet_pton(AF_INET, SERVER_IP, &my_addr.sin_addr);
-
-    cout << "Binding..." << endl;
-    ret = bind(request_socket, (struct sockaddr *)&my_addr, sizeof(my_addr)); // The binding operation.
-    cout << "Binding ok!" << endl;
-
-    ret = listen(request_socket, MAXIMUM_REQUEST_NUMBER); // Put the socket in the listening state.
-
-    cout << "Listening..." << endl;
-    if (ret == -1)
+    // Creazione del socket del server
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket == -1)
     {
-        perror("SERVER ERROR: Error in the listen!\n");
-        exit(1);
+        std::cerr << "socket creation failed: " << strerror(errno) << std::endl;
+        return 1;
     }
 
-    FD_ZERO(&master);  // Initialize the master set.
-    FD_ZERO(&read_fs); // Initialize the copy set.
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(8080);
 
-    FD_SET(request_socket, &master); // Inserisco nel set il socket di ascolto.
-    FD_SET(STANDARD_INPUT, &master); // Insert the standard input socket descriptor.
+    if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1)
+    {
+        std::cerr << "bind failed: " << strerror(errno) << std::endl;
+        close(serverSocket);
+        return 1;
+    }
 
-    fd_max = request_socket; // L'ultimo inserito è request_socket.
-    int requestType = 0;
+    if (listen(serverSocket, 5) == -1)
+    {
+        std::cerr << "listen failed: " << strerror(errno) << std::endl;
+        close(serverSocket);
+        return 1;
+    }
+
+    std::cout << "Server is listening on port 8080..." << std::endl;
 
     while (true)
     {
-        read_fs = master;
-        // cout << "select" << endl;
-        select(fd_max + 1, &read_fs, NULL, NULL, NULL);
+        // Clear and set the file descriptor set
+        FD_ZERO(&readFds);
+        FD_SET(serverSocket, &readFds);
+        maxFd = serverSocket;
 
-        for (i = 0; i <= fd_max; i++)
+        // Wait for activity on the server socket
+        activity = select(maxFd + 1, &readFds, nullptr, nullptr, nullptr);
+        if (activity < 0 && errno != EINTR)
         {
-            if (FD_ISSET(i, &read_fs))
+            std::cerr << "select error: " << strerror(errno) << std::endl;
+            close(serverSocket);
+            return 1;
+        }
+
+        // If something happened on the server socket, it means a new connection
+        if (FD_ISSET(serverSocket, &readFds))
+        {
+            clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrSize);
+            if (clientSocket == -1)
             {
-                if (i == request_socket)
-                {
-                    // It is the request socket that have received the current request.
-                    len = sizeof(client_addr);
-
-                    new_sd = accept(request_socket, (struct sockaddr *)&client_addr, (socklen_t *)&len); // The server accept the request.
-
-                    FD_SET(new_sd, &master);
-
-                    if (new_sd > fd_max)
-                        fd_max = new_sd;
-
-                    requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
-
-                    if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
-                    {
-                        string nickNameSession = ""; // Temporary variable that keeps the nickname of the user that have just logged in.
-                        bool howItEnded = false;     // It becomes true if the procedure goes fine.
-                        string status = "";          // Explain the result of the procedure.
-                        registrationThread(new_sd, howItEnded, status, nickNameSession);
-                        if (howItEnded)
-                        {
-                            // If the registration went fine...
-                            BBSsession(new_sd, nickNameSession); // The actual session.
-                        }
-                        close(new_sd);
-                        continue;
-                    }
-                    if (requestType == LOGIN_REQUEST_TYPE) // Registration.
-                    {
-                        string nickNameSession = ""; // Temporary variable that keeps the nickname of the user that have just logged in.
-                        bool howItEnded = false;     // It becomes true if the procedure goes fine.
-                        string status = "";          // Explain the result of the procedure.
-                        loginThread(new_sd, howItEnded, status, nickNameSession);
-                        if (howItEnded)
-                        {
-                            // If the login procedure went fine...
-                            BBSsession(new_sd, nickNameSession); // The actual session.
-                        }
-                        close(new_sd);
-                        continue;
-                    }
-                }
-                FD_CLR(i, &master); // Not valid socket.
-                close(i);           // Close the not valid socket.
+                std::cerr << "accept failed: " << strerror(errno) << std::endl;
+                continue;
             }
+            std::cout << "New client connected." << std::endl;
+
+            // Crea un nuovo thread per gestire il client
+            std::lock_guard<std::mutex> lock(clientSocketsMutex);
+            threads.emplace_back(threadServerCode, clientSocket);
         }
     }
+
+    // Chiudi il server socket
+    close(serverSocket);
+
+    for (auto &thread : threads)
+    {
+        if (thread.joinable())
+        {
+            thread.join();
+        }
+    }
+
+    return 0;
 }

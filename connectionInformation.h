@@ -2,16 +2,20 @@
 #include "timestampLibrary.h" // Assumo che questa libreria definisca getCurrentTimestamp()
 using namespace std;
 
+#ifndef CONNECTIONINFORMATION_H
+#define CONNECTIONINFORMATION_H
 class connectionInformation {
 private:
-    int socketDescriptor;
+    uint64_t socketDescriptor;
     string nickname;
     string loginTimestamp;
     string lastActivityTimeStamp;
-    bool logged;
+    uint8_t logged;
 
 public:
-    // Costruttore
+    connectionInformation(){
+    }
+
     connectionInformation(int sd, string nickname, string login, string actv, bool logg) {
         this->socketDescriptor = sd;
         this->nickname = nickname;
@@ -33,23 +37,23 @@ public:
     }
 
     // Metodi 'get' per ottenere i valori degli attributi
-    int getSocketDescriptor() const {
+    uint64_t getSocketDescriptor()  {
         return socketDescriptor;
     }
 
-    string getNickname() const {
+    string getNickname()  {
         return nickname;
     }
 
-    string getLoginTimestamp() const {
+    string getLoginTimestamp()  {
         return loginTimestamp;
     }
 
-    string getLastActivityTimeStamp() const {
+    string getLastActivityTimeStamp()  {
         return lastActivityTimeStamp;
     }
 
-    bool isLogged() const {
+    uint8_t getLogged()  {
         return logged;
     }
 
@@ -76,9 +80,33 @@ public:
     void setLogged(bool value) {
         logged = value;
     }
+
+    void setLogged(int value){
+        if(value == 0){
+            logged = 0;
+        }else{
+            logged = 1;
+        }
+    }
+
+    void setLogged(unsigned int value){
+        if(value == 0){
+            logged = 0;
+        }else{
+            logged = 1;
+        }
+    }
+
+    void setLogged(uint64_t value){
+        if(value == 0){
+            logged = 0;
+        }else{
+            logged = 1;
+        }
+    }
+    void setLogged(uint8_t value){
+       logged = value;
+    }
 };
 
-
-/*
- 
-*/
+#endif
