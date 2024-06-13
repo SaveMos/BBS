@@ -96,14 +96,6 @@ void insertNewMessage(messageBBS m, int mode = 0)
     }
 }
 
-void insertNewMessage(messageBBS m, int mode = 0)
-{
-    // This function should insert the message in the perfect spot.
-    if (mode == 0)
-    {
-        messageBoard.push_back(m); // Insert the new message in the back.
-    }
-}
 
 void Add(string title, string author, string body)
 {
