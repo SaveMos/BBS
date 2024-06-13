@@ -53,8 +53,16 @@ int main()
         // Registration test
         sendIntegerNumber(sd, REGISTRATION_REQUEST_TYPE); // I want to registrate, so i send 0.
 
+        cout<<"Insert email"<<endl;
+        cin>>p_mail;
         sendString(sd, p_mail); // Send the email
+
+        cout<<"Insert nickname"<<endl;
+        cin>>p_nick;
         sendString(sd, p_nick); // Send the nickname.
+
+        cout<<"Insert password"<<endl;
+        cin>>p_pwd;
         sendString(sd, p_pwd); // Send the password.
 
         // CHALLENGE
