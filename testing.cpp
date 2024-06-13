@@ -8,6 +8,7 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
+    /*
     messageBBS m;
     uint32_t a = 32;
     m.setId(a);
@@ -73,7 +74,28 @@ int main(int argc, char *argv[])
     string input = "Hello, world!";
     string hash = computeHash(input);
     cout << "Hash SHA-256 di '" << input << "': " << hash << std::endl;
-
+    */
+   
     cout << "Timestamp corrente: " << getCurrentTimestamp() << endl;
+    cout << secondDifference("2024-05-16 09:53:10.222" , "2024-05-16 09:53:15.222") << endl;
+
+    string content = readMessagesFromFile("fileStorage/messageFile.txt");
+    cout << content << endl;
+
+    vector<string> messages = divideString(content,'|');
+
+
+    messageBBS m;
+    for(int i = 0; i < messages.size(); i++){
+        cout << messages[i] << endl;
+        m.deconcatenateAndAssign(messages[i]);
+
+        cout << m.getId() << endl;
+        cout << m.getAuthor() << endl;
+        cout << m.getTitle() << endl;
+        cout << m.getBody() << endl;
+    }
+
+
 
 }

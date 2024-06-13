@@ -1,9 +1,9 @@
-
 #include <string>
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 #include <iomanip>
 #include <sstream>
+
 using namespace std;
 
 #ifndef SECURITY_H
@@ -32,5 +32,21 @@ string computeHash(string input, string algorithm = "SHA256"){
     }
     return ss.str();
 }
+
+/*
+void provaDF(){
+    char msg [] = "Hello world!";
+    unsigned char* signature;
+    unsigned int signature_len;
+
+    signature = malloc(EVP_PKEY_size(prvkey));
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    EVP_SignInit(ctx , EVP_sha256());
+    EVP_SignUpdate(ctx , (unsigned char*)msg, sizeof(msg));
+
+    EVP_SignFinal(ctx , signature , &signature_len , prvkey);
+    
+}
+*/
 
 #endif

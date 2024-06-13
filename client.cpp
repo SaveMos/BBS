@@ -72,7 +72,7 @@ int main()
 
     if(res == 1){
 
-        if(requestString == "login"){
+        if((requestString == "log") || (requestString == "Log") || (requestString == "LOG")){
             cout << "\nWelcome back!\n"<< endl; // The user already register, so he came back.
         }else{
             cout << "\nWelcome!\n"<< endl; // The user have just register himself.
@@ -111,17 +111,17 @@ int main()
                 }
                 sendIntegerNumber(sd , GET_REQUEST_TYPE); // We want to download a post.
                 sendIntegerNumber(sd , targetId); // Send the id of the wanted post.
-                cout << receiveString(sd) << endl;
+                cout << "\n" << receiveString(sd) << endl;
 
             } else if ((requestParts[0] == "add") || (requestParts[0] == "Add") || (requestParts[0] == "ADD")){
                 string title, body;
+                cout << "Insert the title of the post: ";
                 do{
-                    cout << "Insert the title of the post: ";
-                    cin >> title;
+                    title = insertLineFromKeyboard();
                 }while(title.length() == 0);
-
+                
+                cout << "Insert the body of the post: ";
                 do{
-                    cout << "Insert the body of the post: ";
                     body = insertLineFromKeyboard();
                 }while(body.length() == 0);
             
