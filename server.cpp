@@ -87,7 +87,7 @@ messageBBS Get(int mid)
     return m;
 }
 
-void insertNewMessage(messageBBS m, int mode = 0)
+void insertNewMessage(messageBBS m, uint8_t mode = 0)
 {
     // This function should insert the message in the perfect spot.
     if (mode == 0)
@@ -131,8 +131,8 @@ bool checkUserList(string inputNickname, userBBS &us)
 {
     bool res = false;
     mutexUserList.lock();
-    const unsigned int size = userList.size();
-    for (unsigned int i = 0; i < size; i++)
+    const uint64_t size = userList.size();
+    for (uint64_t = 0; i < size; i++)
     {
         // cout << userList.at(i).getNickname() << " " << inputNickname << endl;
         if (userList[i].getNickname() == inputNickname)
@@ -150,8 +150,8 @@ bool checkUserList(string inputNickname)
 {
     bool res = false;
     mutexUserList.lock();
-    const unsigned int size = userList.size();
-    for (unsigned int i = 0; i < size; i++)
+    const uint64_t size = userList.size();
+    for (uint64_t i = 0; i < size; i++)
     {
         if (userList[i].getNickname() == inputNickname)
         {
@@ -237,7 +237,8 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
     {
         // Check if the nickname have already been used.
 
-        uint32_t sendChallenge = 1234, recvChallenge = 1234; // The challenge.
+        uint32_t sendChallenge = 1234;
+        uint32_t recvChallenge = 1234; // The challenge.
 
         sendIntegerNumber(socketDescriptor, sendChallenge);     // Send the challenge.
         recvChallenge = receiveIntegerNumber(socketDescriptor); // Receive the challenge.

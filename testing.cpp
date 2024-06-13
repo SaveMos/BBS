@@ -8,94 +8,21 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
-    /*
-    messageBBS m;
-    uint32_t a = 32;
-    m.setId(a);
-    m.setTitle("Aoooo");
-    m.setAuthor("ssdsdsds");
-    m.setBody("shsdhsdh");
+    string plaintext = "Hello, AES!";
+    string key = "0123456789abcdef0123456789abcdef"; // 32-byte (256-bit) key
+    string iv = "1234567890abcdef";                  // 16-byte (128-bit) IV
 
-    string s;
-    m.concatenateFields(s);
-    cout <<s<< endl;   
+    cout << plaintext << endl;
+    vector<unsigned char> enc_msg = encrypt_AES(plaintext, key);
+    cout << enc_msg.data() << endl;
+    cout << decrypt_AES(enc_msg, key) << endl;
 
-    //test insertUserInFile
-    vector<userBBS> userList;
+    string encryptedMessage = rsa_encrypt(plaintext , loadRSAKey("keyStorage/rsa_pubkey.pem" , true));
+    cout << "Encrypted Message: " << encryptedMessage << endl;
 
-    //cration of three different users
-    userBBS user1("Alice", "password1", "alice@example.com");
-    userBBS user2("Bob", "password2", "bob@example.com");
-    userBBS user3("Charlie", "password3", "charlie@example.com");
+    string decryptedMessage = rsa_decrypt(encryptedMessage , loadRSAKey("keyStorage/rsa_privkey.pem", false));
+    cout << "Decrypted Message: " << decryptedMessage << endl;
 
-    //insertion of the users
-    userList.push_back(user1);
-    userList.push_back(user2);
-    userList.push_back(user3);
-
-    insertUserInFile(userList);
-
-    //test insertUserInVector
-    vector<userBBS> userList1;
-
-    insertUserInVector(userList1);
-
-    for(int i = 0; i < userList1.size(); i++){
-        cout<<userList1.at(i).getNickname()+" "+userList1.at(i).getPasswordDigest()+" "+userList1.at(i).getEmail()<<endl;
-    }
-
-    //test insertMessageInFile
-    vector<messageBBS> messageList;
-
-    //cration of three different messages
-    messageBBS message1(192, "Alice", "Message 1", "This is the body of message 1");
-    messageBBS message2(287, "Bob", "Message 2", "This is the body of message 2");
-    messageBBS message3(337, "Charlie", "Message 3", "This is the body of message 3");
-
-    //insertion of the messages
-    messageList.push_back(message1);
-    messageList.push_back(message2);
-    messageList.push_back(message3);
-
-    insertMessageInFile(messageList);
-
-    //test insertMessageInVector
-    vector<messageBBS> messageList1;
-
-    insertMessageInVector(messageList1);
-
-    for(int i = 0; i < messageList1.size(); i++){
-        cout<<to_string(messageList1.at(i).getId())+" "+messageList1.at(i).getAuthor()+" "+messageList1.at(i).getTitle()+" "+messageList1.at(i).getBody()<<endl;
-    }
-
-    //test checkEmailFormat
-
-    //test hash
-    string input = "Hello, world!";
-    string hash = computeHash(input);
-    cout << "Hash SHA-256 di '" << input << "': " << hash << std::endl;
-    */
-   
-    cout << "Timestamp corrente: " << getCurrentTimestamp() << endl;
-    cout << secondDifference("2024-05-16 09:53:10.222" , "2024-05-16 09:53:15.222") << endl;
-
-    string content = readMessagesFromFile("fileStorage/messageFile.txt");
-    cout << content << endl;
-
-    vector<string> messages = divideString(content,'|');
-
-
-    messageBBS m;
-    for(int i = 0; i < messages.size(); i++){
-        cout << messages[i] << endl;
-        m.deconcatenateAndAssign(messages[i]);
-
-        cout << m.getId() << endl;
-        cout << m.getAuthor() << endl;
-        cout << m.getTitle() << endl;
-        cout << m.getBody() << endl;
-    }
-
-
-
+    const EVP_MD* md = EVP_sha256();
+    cout << calculateHMAC(key , plaintext , md);
 }
