@@ -47,6 +47,11 @@ public:
         id = static_cast<uint32_t>(newId);
     }
 
+    void setId(unsigned int newId)
+    {
+        id = static_cast<uint32_t>(newId);
+    }
+
     void setAuthor(string newAuthor)
     {
         author = newAuthor;

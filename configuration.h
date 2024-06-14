@@ -1,4 +1,5 @@
-
+#ifndef CONFIGURATIONFILE_H
+#define CONFIGURATIONFILE_H
 // Service configuration.
 #define SERVER_PORT 8080
 #define SERVER_IP "127.0.0.1"
@@ -14,7 +15,10 @@
 #define MAXIMUM_CHAR_BODY 255
 #define MINIMUM_CHAR_BODY 1
 
-// Other
 #define STANDARD_INPUT 0
 
-// This file contains some common constants.
+const char* PRIVATE_KEY_PATH = "keyStorage/rsa_privkey.pem";
+const char* PRUBLIC_KEY_PATH = "keyStorage/rsa_pubkey.pem";
+const char* PRIVATE_ENC = "keyPassword"; // AES256 key used to encrypt the rsa private key.
+
+#endif

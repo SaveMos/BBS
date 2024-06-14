@@ -14,6 +14,9 @@
 #include <openssl/err.h>
 #include <openssl/hmac.h>
 
+#include "utilityFile.h"
+#include "configuration.h"
+
 using namespace std;
 
 #ifndef SECURITY_H
@@ -50,50 +53,57 @@ string computeHash(string input)
     return ss.str();
 }
 
-std::string calculateHMAC(const std::string& key, const std::string& message, const EVP_MD* evp_md)
+std::string calculateHMAC(const std::string &key, const std::string &message, const EVP_MD *evp_md)
 {
-    EVP_PKEY* pkey = nullptr;
-    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-    unsigned char* result = nullptr;
+    EVP_PKEY *pkey = nullptr;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    unsigned char *result = nullptr;
     size_t result_len = 0;
     std::string hmac;
 
-    if (!ctx) {
+    if (!ctx)
+    {
         throw std::runtime_error("Errore nella creazione del contesto EVP_MD_CTX");
     }
 
-    pkey = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, nullptr, (const unsigned char*)key.c_str(), key.size());
-    if (!pkey) {
+    pkey = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, nullptr, (const unsigned char *)key.c_str(), key.size());
+    if (!pkey)
+    {
         EVP_MD_CTX_free(ctx);
         throw std::runtime_error("Errore nella creazione della chiave HMAC");
     }
 
-    if (EVP_DigestSignInit(ctx, nullptr, evp_md, nullptr, pkey) != 1) {
+    if (EVP_DigestSignInit(ctx, nullptr, evp_md, nullptr, pkey) != 1)
+    {
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
         throw std::runtime_error("Errore nell'inizializzazione dell'HMAC con EVP_DigestSignInit");
     }
 
-    if (EVP_DigestSignUpdate(ctx, message.c_str(), message.length()) != 1) {
+    if (EVP_DigestSignUpdate(ctx, message.c_str(), message.length()) != 1)
+    {
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
         throw std::runtime_error("Errore nell'aggiornamento del contesto HMAC con il messaggio");
     }
 
-    if (EVP_DigestSignFinal(ctx, nullptr, &result_len) != 1) {
+    if (EVP_DigestSignFinal(ctx, nullptr, &result_len) != 1)
+    {
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
         throw std::runtime_error("Errore nel recupero della dimensione del risultato HMAC");
     }
 
-    result = (unsigned char*)OPENSSL_malloc(result_len);
-    if (!result) {
+    result = (unsigned char *)OPENSSL_malloc(result_len);
+    if (!result)
+    {
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
         throw std::runtime_error("Errore nell'allocazione della memoria per il risultato HMAC");
     }
 
-    if (EVP_DigestSignFinal(ctx, result, &result_len) != 1) {
+    if (EVP_DigestSignFinal(ctx, result, &result_len) != 1)
+    {
         OPENSSL_free(result);
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
@@ -230,15 +240,58 @@ std::string decrypt_AES(const std::vector<unsigned char> &ciphertext, const std:
     return std::string(paddedPlaintext.begin(), paddedPlaintext.end());
 }
 
-// Funzione per caricare una chiave RSA da file
-EVP_PKEY* loadRSAKey(const char* path, const bool public_key)
+// Funzione per convertire std::vector<unsigned char> in EVP_PKEY*
+EVP_PKEY *convertToEVP_PKEY(const std::vector<unsigned char> &privateKeyVec)
 {
-    FILE* file = fopen(path, "r");
-    EVP_PKEY* pkey = nullptr;
+    const unsigned char *keyData = privateKeyVec.data();
+    BIO *bio = BIO_new_mem_buf(keyData, privateKeyVec.size());
+    if (!bio)
+    {
+        throw std::runtime_error("Errore nella creazione del BIO");
+    }
+
+    // Legge la chiave privata RSA dal BIO
+    EVP_PKEY *pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+    if (!pkey)
+    {
+        BIO_free(bio);
+        throw std::runtime_error("Errore nella lettura della chiave privata dal BIO");
+    }
+
+    BIO_free(bio);
+    return pkey;
+}
+
+// Funzione per convertire una stringa contenente una chiave privata in EVP_PKEY*
+EVP_PKEY *convertToEVP_PKEY(const std::string &privateKeyStr)
+{
+    BIO *bio = BIO_new_mem_buf(privateKeyStr.data(), privateKeyStr.size());
+    if (!bio)
+    {
+        throw std::runtime_error("Errore nella creazione del BIO");
+    }
+
+    // Legge la chiave privata RSA dal BIO
+    EVP_PKEY *pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+    if (!pkey)
+    {
+        BIO_free(bio);
+        throw std::runtime_error("Errore nella lettura della chiave privata dal BIO");
+    }
+
+    BIO_free(bio);
+    return pkey;
+}
+
+// Funzione per caricare una chiave RSA da file
+EVP_PKEY *loadRSAKey(const char *path, const bool public_key)
+{
+    EVP_PKEY *pkey = nullptr;
+    FILE *file = fopen(path, "r");
 
     if (!file)
     {
-        throw std::runtime_error("Errore nell'apertura del file della chiave");
+        throw std::runtime_error("RSA Keys file cannot be opened!");
     }
 
     if (public_key)
@@ -247,14 +300,51 @@ EVP_PKEY* loadRSAKey(const char* path, const bool public_key)
     }
     else
     {
-        pkey = PEM_read_PrivateKey(file, nullptr, nullptr, nullptr);
+        pkey = PEM_read_PrivateKey(file, nullptr, nullptr, (void*)PRIVATE_ENC);
     }
 
     fclose(file);
 
     if (!pkey)
     {
-        throw std::runtime_error("Errore nel caricamento della chiave RSA");
+        throw std::runtime_error("RSA Keys cannot be loaded!");
+    }
+
+    return pkey;
+}
+
+// Funzione per caricare una chiave RSA da file
+EVP_PKEY *loadRSAKey(const bool public_key)
+{
+    EVP_PKEY *pkey = nullptr;
+
+    if (public_key)
+    {
+        FILE *file = fopen(PRUBLIC_KEY_PATH, "r");
+        if (!file)
+        {
+            throw std::runtime_error("RSA Public Key file cannot be opened!");
+        }
+        pkey = PEM_read_PUBKEY(file, nullptr, nullptr, nullptr);
+        if (!pkey)
+        {
+            throw std::runtime_error("RSA Public Key cannot be loaded!");
+        }
+        fclose(file);
+    }
+    else
+    {
+        FILE *file = fopen(PRIVATE_KEY_PATH, "r");
+        if (!file)
+        {
+            throw std::runtime_error("RSA Private Key file cannot be opened!");
+        }
+        pkey = PEM_read_PrivateKey(file, nullptr, nullptr, (void*)PRIVATE_ENC);
+        if (!pkey)
+        {
+            throw std::runtime_error("RSA Private Key cannot be loaded!");
+        }
+        fclose(file);
     }
 
     return pkey;

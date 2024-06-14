@@ -132,7 +132,7 @@ bool checkUserList(string inputNickname, userBBS &us)
     bool res = false;
     mutexUserList.lock();
     const uint64_t size = userList.size();
-    for (uint64_t = 0; i < size; i++)
+    for (uint64_t i = 0; i < size; i++)
     {
         // cout << userList.at(i).getNickname() << " " << inputNickname << endl;
         if (userList[i].getNickname() == inputNickname)
@@ -408,7 +408,7 @@ int main()
 
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = INADDR_ANY;
-    serverAddr.sin_port = htons(8080);
+    serverAddr.sin_port = htons(SERVER_PORT);
 
     if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1)
     {
