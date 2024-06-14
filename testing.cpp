@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
     vector<unsigned char> enc_msg = encrypt_AES(plaintext, key);
     cout << "AES Decrypted Message: " << decrypt_AES(enc_msg, key) << endl;
 
-    encryptedMessage = rsa_encrypt(plaintext , loadRSAKey(PRUBLIC_KEY_PATH , true));
+    encryptedMessage = rsa_encrypt(plaintext , loadRSAKey(PUBLIC_KEY_PATH , true));
     decryptedMessage = rsa_decrypt(encryptedMessage , loadRSAKey(PRIVATE_KEY_PATH, false));
     cout << "RSA Decrypted Message: " <<  decryptedMessage << endl;
 

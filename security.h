@@ -320,7 +320,7 @@ EVP_PKEY *loadRSAKey(const bool public_key)
 
     if (public_key)
     {
-        FILE *file = fopen(PRUBLIC_KEY_PATH, "r");
+        FILE *file = fopen(PUBLIC_KEY_PATH, "r");
         if (!file)
         {
             throw std::runtime_error("RSA Public Key file cannot be opened!");
