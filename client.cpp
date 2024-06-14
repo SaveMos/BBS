@@ -38,68 +38,132 @@ int main()
 
     cout << "************ BBS *************" << endl;
 
-    string requestString = "none";
-    string p_mail = "pini@gmail.com";
-    string p_nick = "Pini";
-    string p_pwd = "Pini";
+    string requestString = "";
+    string p_mail = "";
+    string p_nick = "";
+    string p_pwd = "";
     int res = 0;
+    bool valid = false;
+    string status = "";
 
-    do
-    {
+    do{
         cout << "Insert 'reg' for register or insert 'log' for login" << endl;
-        cin >> requestString;
-    } while (requestString != "reg" && requestString != "log"); // 48 is the ASCII code of character 1
+        //we use the getline to get also the white spaces
+        getline(cin, requestString);
+    }while (requestString != "reg" && requestString != "log"); 
 
-    if (requestString == "reg")
-    {
+    if (requestString == "reg"){
 
         // Registration test
         sendIntegerNumber(sd, REGISTRATION_REQUEST_TYPE); // I want to registrate, so i send 0.
 
-        cout << "Insert email" << endl;
-        cin >> p_mail;
-        sendString(sd, p_mail); // Send the email
+        do{
+            cout << "Insert email" << endl;
+            cin >> p_mail;
+            sendString(sd, p_mail); // Send the email
 
-        cout << "Insert nickname" << endl;
-        cin >> p_nick;
-        sendString(sd, p_nick); // Send the nickname.
+           status = receiveString(sd);
+           if(status !="ok"){
 
-        cout << "Insert password" << endl;
-        cin >> p_pwd;
-        sendString(sd, p_pwd); // Send the password.
+                cout<<status<<endl;
+
+           }else{
+                valid = true;
+           }
+
+        }while(!valid);
+
+        valid = false;
+
+        do{
+            cout << "Insert nickname" << endl;
+            cin >> p_nick;
+            sendString(sd, p_nick); // Send the nickname.
+
+           status = receiveString(sd);
+           if(status !="ok"){
+
+                cout<<status<<endl;
+
+           }else{
+                valid = true;
+           }
+
+        }while(!valid);
+       
+       valid = false;
+
+        do{
+            cout << "Insert password" << endl;
+            cin >> p_pwd;
+            sendString(sd, p_pwd); // Send the password.
+
+           status = receiveString(sd);
+           if(status !="ok"){
+
+                cout<<status<<endl;
+
+           }else{
+                valid = true;
+           }
+
+        }while(!valid);
+        
 
         // CHALLENGE
         int requestType = receiveIntegerNumber(sd);
         sendIntegerNumber(sd, requestType);
-    }
-    else if (requestString == "log")
-    {
+
+    }else if (requestString == "log"){
         // Login Test
         sendIntegerNumber(sd, LOGIN_REQUEST_TYPE); // I want to login, so i send 1.
 
-        // cout<<"Insert nickname"<<endl;
-        // cin>>p_nick;
-        sendString(sd, p_nick); // Send the nickname.
+        do{
+            cout<<"Insert nickname"<<endl;
+            cin>>p_nick;
+            sendString(sd, p_nick); // Send the nickname.
 
-        // cout<<"Insert password"<<endl;
-        // cin>>p_pwd;
-        sendString(sd, p_pwd); // Send the password.
+           status = receiveString(sd);
+           if(status !="ok"){
+
+                cout<<status<<endl;
+
+           }else{
+                valid = true;
+           }
+
+        }while(!valid);
+
+        valid = false;
+
+        do{
+            cout<<"Insert password"<<endl;
+            cin>>p_pwd;
+            sendString(sd, p_pwd); // Send the password.
+
+           status = receiveString(sd);
+           if(status !="ok"){
+
+                cout<<status<<endl;
+
+           }else{
+                valid = true;
+           }
+
+        }while(!valid);
     }
 
     res = receiveIntegerNumber(sd); // Receive the result of the login/registration process.
 
-    if (res == 1)
-    {
+    if (res == 1){
 
-        if ((requestString == "log") || (requestString == "Log") || (requestString == "LOG"))
-        {
-            cout << "\nWelcome back!\n"
-                 << endl; // The user already register, so he came back.
-        }
-        else
-        {
-            cout << "\nWelcome!\n"
-                 << endl; // The user have just register himself.
+        if ((requestString == "log") || (requestString == "Log") || (requestString == "LOG")){
+            
+            cout << "\nWelcome back!\n"<< endl; // The user already register, so he came back.
+
+        }else{
+            
+            cout << "\nWelcome!\n"<< endl; // The user have just register himself.
         }
 
         vector<string> requestParts;
@@ -180,8 +244,17 @@ int main()
                 }
                 sendIntegerNumber(sd, GET_REQUEST_TYPE); // We want to download a post.
                 sendIntegerNumber(sd, targetId);         // Send the id of the wanted post.
-                cout << "\n"
-                     << receiveString(sd) << endl;
+                /*
+                string messageGetted = receiveString(sd);
+                if(messageGetted == "err - err - err\n\n"){
+                    cout << "The message doesn't exists"<< endl;
+                }else{
+                    cout << "\n"
+                        << messageGetted << endl;
+                }
+                */
+               cout << "\n"
+                        << receiveString(sd) << endl;
             }
             else if ((requestParts[0] == "add") || (requestParts[0] == "Add") || (requestParts[0] == "ADD"))
             {
@@ -226,18 +299,9 @@ int main()
             }
         }
     }
-    else
-    {
-        if (res == -1)
-        {
-            cout << "\nWrong Password!\n"
-                 << endl;
-        }
-        else
-        {
-            cout << "\nSomething went wrong!\n"
-                 << endl;
-        }
+    else{
+       
+        cout << "\nSomething went wrong!\n"<< endl;
     }
 
     return 0;

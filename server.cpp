@@ -163,6 +163,26 @@ bool checkUserList(string inputNickname)
     return res;
 }
 
+bool checkUserEmail(string inputEmail)
+{
+    bool res = false;
+    mutexUserList.lock();
+    const uint64_t size = userList.size();
+    cout<<"userList.size(): "<<userList.size()<<endl;
+    for (uint64_t i = 0; i < size; i++)
+    {
+         cout<<userList[i].getNickname()<<" - "<<userList[i].getPasswordDigest()<<" - "<<userList[i].getEmail()<<endl;
+        cout<<"userEmail: "<<userList[i].getEmail()<< " - "<<"inputEmail: "<<inputEmail<<endl;
+        if (userList[i].getEmail() == inputEmail)
+        {
+            res = true;
+            break;
+        }
+    }
+    mutexUserList.unlock();
+    return res;
+}
+
 void refreshConnectionInformation(string inputNickname, int sd, string type)
 {
     const uint64_t size = connections.size();
@@ -189,6 +209,8 @@ void loadSnapshot()
     mutexFileStorage.lock();
     insertUserInVector(userList);
     insertMessageInVector(messageBoard);
+    numberOfMessages = messageBoard.size();
+    id_tracker = numberOfMessages - 1;
     insertConnectionInformationInVector(connections);
     mutexFileStorage.unlock();
 }
@@ -212,60 +234,103 @@ void periodicSnaphot(){
 
 void registerationProcedure(int socketDescriptor, bool &result, string &status, string &nickName)
 {
-    const string emailRecv = receiveString(socketDescriptor); // Receive the email from the client.
-    cout << emailRecv << endl;
-    const string nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
-    cout << nickNameRecv << endl;
-    const string pwdRecv = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
-    cout << pwdRecv << endl;
+    string emailRecv; //= receiveString(socketDescriptor); // Receive the email from the client.
+    //cout << emailRecv << endl;
+    string nickNameRecv; // = receiveString(socketDescriptor); // Receive the nickname from the client.
+    //cout << nickNameRecv << endl;
+    string pwdRecv; // = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
+    //cout << pwdRecv << endl;
+    string pwdClear;
+    bool valid = false;
 
-    if (!checkEmailFormat(emailRecv))
-    {
-        result = false;
-        status = "ERROR - Wrong email format";
-        return;
-    }
+    do{
+        emailRecv = receiveString(socketDescriptor); // Receive the email from the client.
+        cout << emailRecv << endl;
 
-    if (emailRecv.length() == 0 || nickNameRecv.length() == 0 || pwdRecv.length() == 0)
-    {
-        result = false;
-        status = "ERROR - Some empty fields!";
-        return;
-    }
-
-    if (!checkUserList(nickNameRecv))
-    {
-        // Check if the nickname have already been used.
-
-        uint32_t sendChallenge = 1234;
-        uint32_t recvChallenge = 1234; // The challenge.
-
-        sendIntegerNumber(socketDescriptor, sendChallenge);     // Send the challenge.
-        recvChallenge = receiveIntegerNumber(socketDescriptor); // Receive the challenge.
-
-        if (recvChallenge == sendChallenge)
-        {
-            // Challenge win!
-            userBBS userRecv(nickNameRecv, emailRecv, "");
-            userRecv.setPasswordDigest(pwdRecv);
-
-            mutexUserList.lock();
-            userList.push_back(userRecv);
-            mutexUserList.unlock();
-
-            connectionInformation c(socketDescriptor, nickNameRecv, getCurrentTimestamp(), getCurrentTimestamp(), true);
-
-            mutexConnections.lock();
-            connections.push_back(c);
-            mutexConnections.unlock();
-
-            result = true;
-            status = "User registered!";
-            sendIntegerNumber(socketDescriptor, 1);
-            nickName = nickNameRecv; // save the nickname for later.
-            return;
+        if (!checkEmailFormat(emailRecv)){
+            result = false;
+            status = "ERROR - Wrong email format";    
+        }else if(checkUserEmail(emailRecv)){
+            result = false;
+            status = "ERROR - This email already exists";
+        }else{
+            valid = true;
+            status = "ok";
         }
-    }
+
+        sendString(socketDescriptor, status);
+
+    }while(!valid);
+
+    valid = false;
+    
+    do{
+        nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
+        cout << nickNameRecv << endl;
+
+        if (nickNameRecv.length() < 3){
+            result = false;
+            status = "ERROR - Nickname must be at least of 3 characters";    
+        }else if(checkUserList(nickNameRecv)){
+            result = false;
+            status = "ERROR - This nickname already exists";
+        }else{
+            valid = true;
+            status = "ok";
+        }
+
+        sendString(socketDescriptor, status);
+
+    }while(!valid);
+   
+    valid = false;
+
+    do{
+        pwdClear = receiveString(socketDescriptor);
+        pwdRecv = computeHash(pwdClear); // Receive the clear password from the client; and immediately compute the hash.
+        cout << pwdRecv << endl;
+
+        if (pwdClear.length() < 5){
+            result = false;
+            status = "ERROR - The password must be at least of 5 characters";
+            sendString(socketDescriptor, status);    
+        }else{
+            valid = true;
+            status = "ok";
+            sendString(socketDescriptor, status);
+
+            // Check if the nickname have already been used.
+            uint32_t sendChallenge = 1234;
+            uint32_t recvChallenge = 1234; // The challenge.
+
+            sendIntegerNumber(socketDescriptor, sendChallenge);     // Send the challenge.
+            recvChallenge = receiveIntegerNumber(socketDescriptor); // Receive the challenge.
+
+            if (recvChallenge == sendChallenge){
+                // Challenge win!
+                userBBS userRecv(nickNameRecv, "", emailRecv);
+                userRecv.setPasswordDigest(pwdRecv);
+
+                mutexUserList.lock();
+                userList.push_back(userRecv);
+                mutexUserList.unlock();
+
+                connectionInformation c(socketDescriptor, nickNameRecv, getCurrentTimestamp(), getCurrentTimestamp(), true);
+
+                mutexConnections.lock();
+                connections.push_back(c);
+                mutexConnections.unlock();
+
+                result = true;
+                status = "User registered!";
+                sendIntegerNumber(socketDescriptor, 1);
+                nickName = nickNameRecv; // save the nickname for later.
+                return;
+            }
+        }
+
+    }while(!valid);
+    
     result = false;
     status = "Something went wrong!";
     sendIntegerNumber(socketDescriptor, 0);
@@ -276,24 +341,44 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
     string nickNameRecv, pwdRecv; // Receiving variables.
     userBBS usr;
     bool res = false;
+    bool valid = false;
 
-    nickNameRecv = receiveString(socketDescriptor);         // Receive the nickname from the client.
-    pwdRecv = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
+    do{
+        nickNameRecv = receiveString(socketDescriptor);         // Receive the nickname from the client.
 
-    if (nickNameRecv.length() == 0 || pwdRecv.length() == 0)
-    {
-        result = false;
-        status = "ERROR - Some empty fields!";
-        return;
-    }
+        if (nickNameRecv.length() == 0){
+            result = false;
+            status = "ERROR - Empty nickname!";
+        }else if(!checkUserList(nickNameRecv, usr)){
+            result = false;
+            status = "ERROR - This nickname doesn't exists!";
+        }else{
+            valid = true;
+            status = "ok";
+        }
 
-    res = checkUserList(nickNameRecv, usr);
+        sendString(socketDescriptor, status);
 
-    if (res)
-    {
-        // Check if the nickname actually exists
-        if (usr.getPasswordDigest() == pwdRecv)
-        {
+    }while(!valid);
+
+    valid = false;
+
+    do{
+        pwdRecv = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
+
+        if (pwdRecv.length() == 0){
+            result = false;
+            status = "ERROR - Empty password!";
+            sendString(socketDescriptor, status);
+        }else if(usr.getPasswordDigest() != pwdRecv){
+            result = false;
+            status = "ERROR - Wrong password!";
+            sendString(socketDescriptor, status);
+        }else{
+            valid = true;
+            status = "ok";
+            sendString(socketDescriptor, status);
+            
             // if the password of the choosen nickname is correct.
             mutexConnections.lock();
             refreshConnectionInformation(nickNameRecv, socketDescriptor, "login");
@@ -305,15 +390,12 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
 
             nickName = nickNameRecv;
             return;
+
         }
-        else
-        {
-            result = false;
-            status = "Wrong password!";
-            sendIntegerNumber(socketDescriptor, -1);
-            return;
-        }
-    }
+
+    }while(!valid);
+
+    
     result = false;
     status = "Something went wrong!";
     sendIntegerNumber(socketDescriptor, 0);
@@ -393,7 +475,16 @@ int main()
     std::vector<std::thread> threads;
     std::mutex clientSocketsMutex; // Mutex for synchronizing access to clientSockets vector.
 
+    //load each file in the respective vector
     loadSnapshot();
+
+    for(int i = 0; i < messageBoard.size(); i++){
+        cout<<messageBoard[i].getId()<<" - "<<messageBoard[i].getAuthor()<<" - "<<messageBoard[i].getTitle()<<" - "<<messageBoard[i].getBody()<<endl;
+    }
+
+     for(int i = 0; i < userList.size(); i++){
+        cout<<userList[i].getNickname()<<" - "<<userList[i].getPasswordDigest()<<" - "<<userList[i].getEmail()<<endl;
+    }
 
     thread snapshotter(periodicSnaphot);
     snapshotter.detach();

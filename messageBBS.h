@@ -119,7 +119,7 @@ public:
     }
 
     string toListed(){
-        string ret = this->getAuthor() + " - " + this->getTitle() + "\n" + this->getBody() + "\n" + "\n";  
+        string ret = this->getAuthor() + " - " + this->getTitle() + " - " + this->getBody() + "\n" + "\n";  
         return ret;
     }
     
