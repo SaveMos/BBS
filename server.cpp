@@ -3,7 +3,7 @@
 #include "utilityFile.h"
 #include "connectionInformation.h"
 #include "security.h"
-
+#include <openssl/evp.h>
 #include <mutex>
 #include <vector>
 #include <thread>
@@ -30,6 +30,11 @@ vector<messageBBS> messageBoard;
 vector<userBBS> userList;
 vector<thread> threadMixer; // Vector of the threads descriptors.
 vector<connectionInformation> connections;
+
+
+EVP_PKEY *serverPrivateKey;
+std::string encryptedAesKey;
+std::string aesKey;
 
 string List(int n)
 {
@@ -168,17 +173,16 @@ bool checkUserEmail(string inputEmail)
     bool res = false;
     mutexUserList.lock();
     const uint64_t size = userList.size();
-    cout<<"userList.size(): "<<userList.size()<<endl;
+    
     for (uint64_t i = 0; i < size; i++)
     {
-         cout<<userList[i].getNickname()<<" - "<<userList[i].getPasswordDigest()<<" - "<<userList[i].getEmail()<<endl;
-        cout<<"userEmail: "<<userList[i].getEmail()<< " - "<<"inputEmail: "<<inputEmail<<endl;
         if (userList[i].getEmail() == inputEmail)
         {
             res = true;
             break;
         }
     }
+     
     mutexUserList.unlock();
     return res;
 }
@@ -243,9 +247,31 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
     string pwdClear;
     bool valid = false;
 
+
     do{
-        emailRecv = receiveString(socketDescriptor); // Receive the email from the client.
+        
+        // Receive the encrypted message and HMAC from the client
+        std::string encryptedMessage = receiveString(socketDescriptor);
+        std::string receivedHmac = receiveString(socketDescriptor);
+        //cout<<"encrypted email received from the client: "<<encryptedMessage<<endl;
+        // Decript the message with AES
+        std::vector<unsigned char> encryptedMessageVec(encryptedMessage.begin(), encryptedMessage.end());
+        emailRecv = decrypt_AES(encryptedMessageVec, aesKey);
+        
+        cout<<"email received from the client: "<<emailRecv<<endl;
+        // Verify HMAC of encrypted message
+        const EVP_MD *evp_md = EVP_sha256();
+        std::string calculatedHmac = calculateHMAC(aesKey, std::string(encryptedMessage.begin(), encryptedMessage.end()), evp_md);
+
+        cout<<"calculatedHmac: "<<calculatedHmac<<"\n"<<"receivedHmac: "<<receivedHmac<<endl;
+
+        if (calculatedHmac != receivedHmac) {
+            throw std::runtime_error("Error: HMAC doesn't correspond, the message could have been alterated");
+        }
+
+        //emailRecv = receiveString(socketDescriptor); // Receive the email from the client.
         cout << emailRecv << endl;
+
 
         if (!checkEmailFormat(emailRecv)){
             result = false;
@@ -440,6 +466,15 @@ void threadServerCode(int new_sd)
     string nickNameSession = "";                          // Temporary variable that keeps the nickname of the user that have just logged in.
     bool howItEnded = false;                              // It becomes true if the procedure goes fine.
     string status = "";                                   // Explain the result of the procedure.
+    //---------------------------------------------------------------------------------------------------------
+    // Receive the encrypted AES key from the client
+    encryptedAesKey = receiveString(new_sd);
+    //cout<<"encrypted aes key received from the client: "<<encryptedAesKey<<endl;
+    // Decrypt AES key with the RSA private key of the server
+    aesKey = rsa_decrypt(encryptedAesKey, serverPrivateKey);
+    //cout<<"decrypted aes key received from the client: "<<aesKey<<endl;
+    //-----------------------------------------------------------------------------------------------------------
+
     const int requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
 
     if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
@@ -465,6 +500,10 @@ void threadServerCode(int new_sd)
     }
 }
 
+//load the RSA server private key from the file
+EVP_PKEY* loadServerPrivateKey() {
+    return loadRSAKey(PRIVATE_KEY_PATH, false);
+}
 
 int main()
 {
@@ -477,7 +516,7 @@ int main()
 
     //load each file in the respective vector
     loadSnapshot();
-
+    /*
     for(int i = 0; i < messageBoard.size(); i++){
         cout<<messageBoard[i].getId()<<" - "<<messageBoard[i].getAuthor()<<" - "<<messageBoard[i].getTitle()<<" - "<<messageBoard[i].getBody()<<endl;
     }
@@ -485,7 +524,7 @@ int main()
      for(int i = 0; i < userList.size(); i++){
         cout<<userList[i].getNickname()<<" - "<<userList[i].getPasswordDigest()<<" - "<<userList[i].getEmail()<<endl;
     }
-
+    */
     thread snapshotter(periodicSnaphot);
     snapshotter.detach();
 
@@ -514,6 +553,12 @@ int main()
         close(serverSocket);
         return 1;
     }
+
+    //---------------------------------------------------------------------------------------------------------
+    // load the private key of the server
+    serverPrivateKey = loadServerPrivateKey();
+    //cout<<"server privare key: "<<serverPrivateKey<<endl;
+    //---------------------------------------------------------------------------------------------------------
 
     std::cout << "Server is listening on port 8080..." << std::endl;
 

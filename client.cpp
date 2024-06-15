@@ -8,11 +8,25 @@
 #include <iostream>
 #include <chrono>
 #include <string>
+#include "security.h"
+#include <openssl/evp.h>
+#include <openssl/rand.h>
 
 using namespace std;
 
+//load the RSA client private key from the file
+EVP_PKEY* loadClientPrivateKey() {
+    return loadRSAKey(PRIVATE_KEY_PATH, false);
+}
+//load the RSA server public key from the file
+EVP_PKEY* loadServerPublicKey() {
+    return loadRSAKey(PUBLIC_KEY_PATH, true);
+}
+
 int main()
 {
+    
+   
     // Variables declaration.
     struct sockaddr_in server_addr; // Socket of the server.
     int sd, ret;
@@ -35,6 +49,22 @@ int main()
         printf("Errore nella Connessione\n");
         exit(1);
     }
+     //---------------------------------------------------------------------------------------------------------
+    // load the public key of the server
+    EVP_PKEY *serverPublicKey = loadServerPublicKey();
+    //cout<<"server public key"<<serverPublicKey<<endl;
+    // generates a random AES key of 32 bytes
+    std::vector<unsigned char> aesKey(32);
+    if (!RAND_bytes(aesKey.data(), aesKey.size())) {
+        throw std::runtime_error("Error in the generation of the AES key");
+    }
+    //cout<<"aes key client "<<aesKey<<endl;
+    // encrypt AES key with the RSA public key of the server
+    std::string encryptedAesKey = rsa_encrypt(std::string(aesKey.begin(), aesKey.end()), serverPublicKey);
+    //cout<<"encrypted aes key"<<encryptedAesKey<<endl;
+    // send the encrypted AES key to the server
+    sendString(sd, encryptedAesKey);
+    //---------------------------------------------------------------------------------------------------------
 
     cout << "************ BBS *************" << endl;
 
@@ -60,7 +90,16 @@ int main()
         do{
             cout << "Insert email" << endl;
             cin >> p_mail;
-            sendString(sd, p_mail); // Send the email
+            //---------------------------------------------------------------------------------------------------------
+            // encrypt the message with AES
+            std::vector<unsigned char> encryptedMail = encrypt_AES(p_mail, std::string(aesKey.begin(), aesKey.end()));
+            // compute the HMAC of the encrypted message
+            const EVP_MD *evp_md = EVP_sha256();
+            std::string hmac = calculateHMAC(std::string(aesKey.begin(), aesKey.end()), std::string(encryptedMail.begin(), encryptedMail.end()), evp_md);
+            cout<<"hmac calcolato dal client: "<<hmac<<endl;
+            sendString(sd, std::string(encryptedMail.begin(), encryptedMail.end())); // Send the email
+            sendString(sd, hmac);          //send hmac to the server
+            //---------------------------------------------------------------------------------------------------------
 
            status = receiveString(sd);
            if(status !="ok"){
