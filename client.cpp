@@ -14,10 +14,6 @@
 
 using namespace std;
 
-//load the RSA client private key from the file
-EVP_PKEY* loadClientPrivateKey() {
-    return loadRSAKey(PRIVATE_KEY_PATH, false);
-}
 //load the RSA server public key from the file
 EVP_PKEY* loadServerPublicKey() {
     return loadRSAKey(PUBLIC_KEY_PATH, true);
@@ -93,6 +89,7 @@ int main()
             //---------------------------------------------------------------------------------------------------------
             // encrypt the message with AES
             std::vector<unsigned char> encryptedMail = encrypt_AES(p_mail, std::string(aesKey.begin(), aesKey.end()));
+             cout<<"enc email received from the client: "<<std::string(encryptedMail.begin(), encryptedMail.end())<<endl;
             // compute the HMAC of the encrypted message
             const EVP_MD *evp_md = EVP_sha256();
             std::string hmac = calculateHMAC(std::string(aesKey.begin(), aesKey.end()), std::string(encryptedMail.begin(), encryptedMail.end()), evp_md);

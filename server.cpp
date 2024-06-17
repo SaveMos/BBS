@@ -259,6 +259,12 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
         emailRecv = decrypt_AES(encryptedMessageVec, aesKey);
         
         cout<<"email received from the client: "<<emailRecv<<endl;
+        cout<<"enc email received from the client: "<<std::string(encryptedMessage.begin(), encryptedMessage.end())<<endl;
+        if(std::string(encryptedMessage.begin(), encryptedMessage.end()) == "marco@gmail.com\n"){
+            cout<<"ok"<<endl;
+        }else{
+            cout<<"non ok"<<endl;
+        }
         // Verify HMAC of encrypted message
         const EVP_MD *evp_md = EVP_sha256();
         std::string calculatedHmac = calculateHMAC(aesKey, std::string(encryptedMessage.begin(), encryptedMessage.end()), evp_md);
