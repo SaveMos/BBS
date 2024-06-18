@@ -259,7 +259,7 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
         emailRecv = decrypt_AES(encryptedMessageVec, aesKey);
         
         cout<<"email received from the client: "<<emailRecv<<endl;
-        cout<<"enc email received from the client: "<<std::string(encryptedMessage.begin(), encryptedMessage.end())<<endl;
+        cout<<"enc email: "<<std::string(encryptedMessage.begin(), encryptedMessage.end())<<endl;
         if(std::string(encryptedMessage.begin(), encryptedMessage.end()) == "marco@gmail.com\n"){
             cout<<"ok"<<endl;
         }else{
@@ -478,7 +478,7 @@ void threadServerCode(int new_sd)
     //cout<<"encrypted aes key received from the client: "<<encryptedAesKey<<endl;
     // Decrypt AES key with the RSA private key of the server
     aesKey = rsa_decrypt(encryptedAesKey, serverPrivateKey);
-    //cout<<"decrypted aes key received from the client: "<<aesKey<<endl;
+    cout<<"decrypted aes key received from the client: "<<aesKey<<endl;
     //-----------------------------------------------------------------------------------------------------------
 
     const int requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
