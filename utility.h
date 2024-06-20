@@ -54,5 +54,26 @@ unsigned int countOccurrencies(string input, char c){
     return count;
 }
 
+std::string toHex(const std::vector<unsigned char>& data) {
+    std::string hexStr;
+    for (unsigned char byte : data) {
+        char buf[3];
+        sprintf(buf, "%02x", byte);
+        hexStr.append(buf);
+    }
+    return hexStr;
+}
+
+std::string toHex(const std::string& data) {
+    std::string hexStr;
+    for (unsigned char byte : data) {
+        char buf[3];
+        sprintf(buf, "%02x", byte);
+        hexStr.append(buf);
+    }
+    return hexStr;
+}
+
+
 
 #endif

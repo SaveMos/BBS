@@ -14,6 +14,7 @@
 
 using namespace std;
 
+
 //load the RSA server public key from the file
 EVP_PKEY* loadServerPublicKey() {
     return loadRSAKey(PUBLIC_KEY_PATH, true);
@@ -55,11 +56,9 @@ int main()
         throw std::runtime_error("Error in the generation of the AES key");
     }
    
-    cout <<"aeskey: "<<std::string(aesKey.begin(), aesKey.end())<<endl;
     //cout<<"aes key client "<<aesKey<<endl;
     // encrypt AES key with the RSA public key of the server
     std::string encryptedAesKey = rsa_encrypt(std::string(aesKey.begin(), aesKey.end()), serverPublicKey);
-    
     //cout<<"encrypted aes key"<<encryptedAesKey<<endl;
     // send the encrypted AES key to the server
     sendString(sd, encryptedAesKey);
@@ -93,7 +92,6 @@ int main()
             // encrypt the message with AES
             std::vector<unsigned char> encryptedMail = encrypt_AES(p_mail, std::string(aesKey.begin(), aesKey.end()));
              
-            cout<<"enc email: "<<std::string(encryptedMail.begin(), encryptedMail.end())<<endl;
             // compute the HMAC of the encrypted message
             const EVP_MD *evp_md = EVP_sha256();
             std::string hmac = calculateHMAC(std::string(aesKey.begin(), aesKey.end()), std::string(encryptedMail.begin(), encryptedMail.end()), evp_md);
