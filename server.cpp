@@ -36,6 +36,7 @@ EVP_PKEY *serverPrivateKey;
 std::string encryptedAesKey;
 std::string aesKey;
 
+
 string List(int n)
 {
     string listed = "";
@@ -258,13 +259,8 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
         std::vector<unsigned char> encryptedMessageVec(encryptedMessage.begin(), encryptedMessage.end());
         emailRecv = decrypt_AES(encryptedMessageVec, aesKey);
         
-        cout<<"email received from the client: "<<emailRecv<<endl;
         cout<<"enc email: "<<std::string(encryptedMessage.begin(), encryptedMessage.end())<<endl;
-        if(std::string(encryptedMessage.begin(), encryptedMessage.end()) == "marco@gmail.com\n"){
-            cout<<"ok"<<endl;
-        }else{
-            cout<<"non ok"<<endl;
-        }
+       
         // Verify HMAC of encrypted message
         const EVP_MD *evp_md = EVP_sha256();
         std::string calculatedHmac = calculateHMAC(aesKey, std::string(encryptedMessage.begin(), encryptedMessage.end()), evp_md);
@@ -478,7 +474,6 @@ void threadServerCode(int new_sd)
     //cout<<"encrypted aes key received from the client: "<<encryptedAesKey<<endl;
     // Decrypt AES key with the RSA private key of the server
     aesKey = rsa_decrypt(encryptedAesKey, serverPrivateKey);
-    cout<<"decrypted aes key received from the client: "<<aesKey<<endl;
     //-----------------------------------------------------------------------------------------------------------
 
     const int requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.

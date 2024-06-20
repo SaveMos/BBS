@@ -389,7 +389,7 @@ std::string rsa_encrypt(const std::string &plainText, EVP_PKEY *pkey)
 
     return cipherText;
 }
-
+/*
 std::string rsa_decrypt(const std::string &cipherText, EVP_PKEY *pkey)
 {
 
@@ -427,6 +427,54 @@ std::string rsa_decrypt(const std::string &cipherText, EVP_PKEY *pkey)
     }
 
     EVP_PKEY_CTX_free(ctx);
+
+    return plainText;
+}
+*/
+std::string rsa_decrypt(const std::string &cipherText, EVP_PKEY *pkey)
+{
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
+    if (ctx == nullptr)
+    {
+        EVP_PKEY_free(pkey);
+        throw std::runtime_error("Errore creazione contesto EVP_PKEY_CTX per decifratura");
+    }
+
+    if (EVP_PKEY_decrypt_init(ctx) <= 0)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        EVP_PKEY_free(pkey);
+        throw std::runtime_error("Errore inizializzazione operazione di decifratura");
+    }
+
+    if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) <= 0)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        EVP_PKEY_free(pkey);
+        throw std::runtime_error("Errore impostazione padding RSA");
+    }
+
+    size_t outlen;
+    if (EVP_PKEY_decrypt(ctx, nullptr, &outlen, (const unsigned char *)cipherText.c_str(), cipherText.length()) <= 0)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        EVP_PKEY_free(pkey);
+        throw std::runtime_error("Errore determinazione dimensione buffer per decifratura");
+    }
+
+    std::string plainText(outlen, '\0');
+    if (EVP_PKEY_decrypt(ctx, (unsigned char *)plainText.data(), &outlen, (const unsigned char *)cipherText.c_str(), cipherText.length()) <= 0)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        EVP_PKEY_free(pkey);
+        throw std::runtime_error("Errore decifratura dati");
+    }
+
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+
+    // Truncate the string to the actual size of decrypted data
+    plainText.resize(outlen);
 
     return plainText;
 }
