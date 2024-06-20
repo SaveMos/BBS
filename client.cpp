@@ -96,7 +96,7 @@ int main()
             const EVP_MD *evp_md = EVP_sha256();
             std::string hmac = calculateHMAC(std::string(aesKey.begin(), aesKey.end()), std::string(encryptedMail.begin(), encryptedMail.end()), evp_md);
             
-            cout<<"hmac calcolato dal client: "<<hmac<<endl;
+            
             sendString(sd, std::string(encryptedMail.begin(), encryptedMail.end())); // Send the email
             sendString(sd, hmac);          //send hmac to the server
             //---------------------------------------------------------------------------------------------------------
