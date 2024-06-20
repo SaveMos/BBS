@@ -101,7 +101,8 @@ public:
 
     bool checkPassword(string& inputPassword)
     {
-        if (this->computeHash(inputPassword + this->salt) == this->passwordDigest)
+        string tempInputPassword = inputPassword + this->salt ;
+        if (this->computeHash(tempInputPassword) == this->passwordDigest)
         {
             return true;
         }

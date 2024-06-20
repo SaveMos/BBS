@@ -38,4 +38,10 @@ int main(int argc, char *argv[])
    cout << secondDifference(ta , ts) << endl;
 
    cout << getCurrentTimestamp() << endl;
+
+   cout<< generateRandomSalt(4)<<endl;
+   cout<< generateRandomSalt(4)<<endl;
+   cout<< generateRandomSalt(4)<<endl;
+   cout<< generateRandomSalt(4)<<endl;
+   cout<< generateRandomSalt(4)<<endl;
 }

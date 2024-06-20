@@ -384,7 +384,7 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
 
             if (recvChallenge == sendChallenge){
                 // Challenge win!
-                userBBS userRecv(nickNameRecv, "", emailRecv);
+                userBBS userRecv(nickNameRecv, "", emailRecv,  generateRandomSalt(4));
                 userRecv.setPasswordDigest(pwdRecv);
 
                 mutexUserList.lock();
@@ -440,7 +440,8 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
     valid = false;
 
     do{
-        pwdRecv = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
+        string pwd = receiveString(socketDescriptor);
+        pwdRecv = computeHash(pwd); // Receive the clear password from the client; and immediately compute the hash.
 
         if (pwdRecv.length() == 0){
             result = false;

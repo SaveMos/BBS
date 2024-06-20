@@ -510,5 +510,22 @@ int generate_secure_random_int() {
 }
 
 
+std::string generateRandomSalt(size_t length) {
+    std::vector<unsigned char> salt(length);
+
+    if (!RAND_bytes(salt.data(), salt.size())) {
+        throw std::runtime_error("Error generating random bytes for salt");
+    }
+
+    // Convert the salt to a hexadecimal string (if needed)
+    std::ostringstream oss;
+    for (size_t i = 0; i < salt.size(); ++i) {
+        oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(salt[i]);
+    }
+
+    return oss.str();
+}
+
+
 
 #endif
