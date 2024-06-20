@@ -240,6 +240,9 @@ std::string decrypt_AES(const std::vector<unsigned char> &ciphertext, const std:
     return std::string(paddedPlaintext.begin(), paddedPlaintext.end());
 }
 
+
+// --------------- RSA Part -----------------------------------------------------------------------------------------------
+
 // Funzione per convertire std::vector<unsigned char> in EVP_PKEY*
 EVP_PKEY *convertToEVP_PKEY(const std::vector<unsigned char> &privateKeyVec)
 {
@@ -430,5 +433,34 @@ std::string rsa_decrypt(const std::string &cipherText, EVP_PKEY *pkey)
 
     return plainText;
 }
+
+// --------------- Generazione Numero Random --------------------------------------------------------------------------------
+
+
+uint8_t generate_secure_random_8_unsigned_int() {
+    uint8_t random_number;
+    if (RAND_bytes(reinterpret_cast<unsigned char*>(&random_number), sizeof(uint8_t)) != 1) {
+        throw std::runtime_error("RAND_bytes failed");
+    }
+    return random_number;
+}
+
+uint64_t generate_secure_random_64_unsigned_int() {
+    uint64_t random_number;
+    if (RAND_bytes(reinterpret_cast<unsigned char*>(&random_number), sizeof(uint64_t)) != 1) {
+        throw std::runtime_error("RAND_bytes failed");
+    }
+    return random_number;
+}
+
+int generate_secure_random_int() {
+    int random_number;
+    if (RAND_bytes(reinterpret_cast<unsigned char*>(&random_number), sizeof(int)) != 1) {
+        throw std::runtime_error("RAND_bytes failed");
+    }
+    return random_number;
+}
+
+
 
 #endif

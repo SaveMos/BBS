@@ -9,6 +9,7 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
+    /*
     string plaintext = "Hello, AES!";
     string key = "0123456789abcdef0123456789abcdef"; // 32-byte (256-bit) key
     const string iv = "1234567890abcdef";                  // 16-byte (128-bit) IV
@@ -29,4 +30,12 @@ int main(int argc, char *argv[])
    
     const EVP_MD* md1 = EVP_sha256();
     cout << "HMAC1: " << calculateHMAC(key , plaintext , md1) << endl;
+    */
+   string ts = "2024-06-20 11:17:03.958";
+   string ta = "2024-06-20 11:17:43.958";
+
+   cout << secondDifference(ts , ta) << endl;
+   cout << secondDifference(ta , ts) << endl;
+
+   cout << getCurrentTimestamp() << endl;
 }

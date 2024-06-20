@@ -24,6 +24,7 @@ tm parseTimestamp(string& timestamp) {
 
 
 int secondDifference(string timestamp1 , string timestamp2){
+    // The second is the bigger one
     try {
         // Convertire i timestamp in oggetti std::tm
         tm tm1 = parseTimestamp(timestamp1);
@@ -34,7 +35,7 @@ int secondDifference(string timestamp1 , string timestamp2){
         auto tp2 = chrono::system_clock::from_time_t(mktime(&tm2));
 
         // Calcolare la differenza tra i due time_point
-        return static_cast<int>(chrono::duration_cast<chrono::seconds>(tp2 - tp1).count());
+        return (static_cast<int>(chrono::duration_cast<chrono::seconds>(tp2 - tp1).count()));
     } catch (const exception& e) {
         return -1;
     }

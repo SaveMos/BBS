@@ -13,6 +13,7 @@
 #define MAXIMUM_REQUEST_NUMBER 1000
 #define SNAPSHOT_PERIOD 30
 
+#define CONNECTION_INFO_CHECK_PERIOD 15
 using namespace std;
 // Variabili dei Threads
 mutex mutexBBS;
@@ -101,7 +102,6 @@ void insertNewMessage(messageBBS m, uint8_t mode = 0)
     }
 }
 
-
 void Add(string title, string author, string body)
 {
     messageBBS m(0, author, title, body);
@@ -127,10 +127,41 @@ void periodicCheckOfTheBoard()
     // This function should check for delete non valid messages.
 }
 
+void doConnectionListCheck(){
+    mutexConnections.lock();
+    const size_t size =  connections.size();
+    for(size_t i = 0 ; i < size; i++){
+        if(!connections[i].checkValidityOfTheConnection() && connections[i].getLogged() == true){
+            // Connessione scaduta, l'utente ha chiuso il programma senza fare logout o è inattivo da troppo tempo.
+            connections[i].setLogged(false);
+        }
+    }
+    mutexConnections.unlock();
+}
+
 void periodicCheckOfTheConnectionsList()
 {
-    // This function should delete the too old connection object of the users.
+    while(true){
+        this_thread::sleep_for(std::chrono::seconds(CONNECTION_INFO_CHECK_PERIOD));
+        doConnectionListCheck();
+    }
 }
+
+bool getConnectionInfoOfUser(string inputNickname, connectionInformation& conn){
+    bool found = false;
+    mutexConnections.lock();
+    const size_t size =  connections.size();
+    for(size_t i = 0 ; i < size; i++){
+        if(connections[i].getNickname() == inputNickname){
+            conn = connections[i];
+            found = true;
+            break;
+        }
+    }
+    mutexConnections.unlock();
+    return found;
+}
+
 
 bool checkUserList(string inputNickname, userBBS &us)
 {
@@ -139,7 +170,6 @@ bool checkUserList(string inputNickname, userBBS &us)
     const uint64_t size = userList.size();
     for (uint64_t i = 0; i < size; i++)
     {
-        // cout << userList.at(i).getNickname() << " " << inputNickname << endl;
         if (userList[i].getNickname() == inputNickname)
         {
             us = userList[i];
@@ -189,8 +219,8 @@ bool checkUserEmail(string inputEmail)
 
 void refreshConnectionInformation(string inputNickname, int sd, string type)
 {
-    const uint64_t size = connections.size();
-    for (uint64_t i = 0; i < size; i++)
+    const size_t size = connections.size();
+    for (size_t i = 0; i < size; i++)
     {
         if (connections[i].getNickname() == inputNickname)
         {
@@ -236,6 +266,25 @@ void periodicSnaphot(){
     }
 }
 
+uint8_t checkUserConnectionInfoAtLoginOrRegistration(string& nickname){
+    connectionInformation conn;
+   
+    if(getConnectionInfoOfUser(nickname , conn)){
+        // There exists a connection of this user...
+        if(conn.getLogged()){
+            // The user is already logged!
+            return 1;
+        }
+
+        if(!conn.checkValidityOfTheConnection()){
+            // The connection info has errors!
+            return 2;
+
+        }
+    }
+    return 0;
+}
+
 void registerationProcedure(int socketDescriptor, bool &result, string &status, string &nickName)
 {
     string emailRecv; //= receiveString(socketDescriptor); // Receive the email from the client.
@@ -246,7 +295,6 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
     //cout << pwdRecv << endl;
     string pwdClear;
     bool valid = false;
-
 
     do{
         
@@ -522,6 +570,7 @@ int main()
 
     //load each file in the respective vector
     loadSnapshot();
+
     /*
     for(int i = 0; i < messageBoard.size(); i++){
         cout<<messageBoard[i].getId()<<" - "<<messageBoard[i].getAuthor()<<" - "<<messageBoard[i].getTitle()<<" - "<<messageBoard[i].getBody()<<endl;
@@ -533,6 +582,9 @@ int main()
     */
     thread snapshotter(periodicSnaphot);
     snapshotter.detach();
+
+    thread connectionListChecker(periodicCheckOfTheConnectionsList);
+    connectionListChecker.detach();
 
     // Creazione del socket del server
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);

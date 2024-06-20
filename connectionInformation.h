@@ -4,6 +4,10 @@ using namespace std;
 
 #ifndef CONNECTIONINFORMATION_H
 #define CONNECTIONINFORMATION_H
+
+#define CONNECTION_VALIDITY_PERIOD 60 * 20 // 20 minutes
+
+
 class connectionInformation {
 private:
     uint64_t socketDescriptor;
@@ -32,8 +36,12 @@ public:
     }
 
     void refreshLogout(){
-        this->lastActivityTimeStamp = getCurrentTimestamp();
+        this->refreshLastActionTimestamp();
         this->logged = false;
+    }
+
+    void refreshLastActionTimestamp(){
+        this->lastActivityTimeStamp = getCurrentTimestamp();
     }
 
     // Metodi 'get' per ottenere i valori degli attributi
@@ -89,14 +97,6 @@ public:
         }
     }
 
-    void setLogged(unsigned int value){
-        if(value == 0){
-            logged = 0;
-        }else{
-            logged = 1;
-        }
-    }
-
     void setLogged(uint64_t value){
         if(value == 0){
             logged = 0;
@@ -106,6 +106,21 @@ public:
     }
     void setLogged(uint8_t value){
        logged = value;
+    }
+
+    bool checkValidityOfTheConnection(){
+        const string currentTs = getCurrentTimestamp();
+        const int diffLast = secondDifference(currentTs , this->lastActivityTimeStamp);
+        const int diffLog = secondDifference(currentTs , this->loginTimestamp);
+        if(
+            diffLog < 0 || 
+            diffLast < 0 || 
+            diffLast > CONNECTION_VALIDITY_PERIOD
+            ){
+            return false;
+        }else{
+            return true;
+        }
     }
 };
 
