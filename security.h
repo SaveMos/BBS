@@ -28,7 +28,7 @@ void handleErrors()
     abort();
 }
 
-string computeHash(string input)
+string computeHash(string& input)
 {
     // Initialize EVP for hashing
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
