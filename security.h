@@ -13,6 +13,8 @@
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/hmac.h>
+#include <openssl/bn.h>
+
 
 #include "utilityFile.h"
 #include "configuration.h"
@@ -528,32 +530,41 @@ std::string generateRandomSalt(size_t length) {
 
 
 void generateRSAKeyPair(std::string &publicKey, std::string &privateKey, int bits = 2048) {
-    // Create a new RSA key object
-    RSA *rsa = RSA_new();
-    BIGNUM *bignum = BN_new();
-    BN_set_word(bignum, RSA_F4); // RSA_F4 is a commonly used public exponent
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
+    if (!ctx) {
+        throw std::runtime_error("Error creating EVP_PKEY_CTX");
+    }
 
-    // Generate the RSA key pair
-    if (RSA_generate_key_ex(rsa, bits, bignum, nullptr) != 1) {
-        BN_free(bignum);
-        RSA_free(rsa);
+    if (EVP_PKEY_keygen_init(ctx) <= 0) {
+        EVP_PKEY_CTX_free(ctx);
+        throw std::runtime_error("Error initializing keygen context");
+    }
+
+    if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, bits) <= 0) {
+        EVP_PKEY_CTX_free(ctx);
+        throw std::runtime_error("Error setting RSA key length");
+    }
+
+    EVP_PKEY *pkey = nullptr;
+    if (EVP_PKEY_keygen(ctx, &pkey) <= 0) {
+        EVP_PKEY_CTX_free(ctx);
         throw std::runtime_error("Error generating RSA key pair");
     }
 
     // Extract the private key
     BIO *privateBIO = BIO_new(BIO_s_mem());
-    if (PEM_write_bio_RSAPrivateKey(privateBIO, rsa, nullptr, nullptr, 0, nullptr, nullptr) != 1) {
-        BN_free(bignum);
-        RSA_free(rsa);
+    if (!PEM_write_bio_PrivateKey(privateBIO, pkey, nullptr, nullptr, 0, nullptr, nullptr)) {
+        EVP_PKEY_free(pkey);
+        EVP_PKEY_CTX_free(ctx);
         BIO_free_all(privateBIO);
         throw std::runtime_error("Error writing private key to BIO");
     }
 
     // Extract the public key
     BIO *publicBIO = BIO_new(BIO_s_mem());
-    if (PEM_write_bio_RSAPublicKey(publicBIO, rsa) != 1) {
-        BN_free(bignum);
-        RSA_free(rsa);
+    if (!PEM_write_bio_PUBKEY(publicBIO, pkey)) {
+        EVP_PKEY_free(pkey);
+        EVP_PKEY_CTX_free(ctx);
         BIO_free_all(privateBIO);
         BIO_free_all(publicBIO);
         throw std::runtime_error("Error writing public key to BIO");
@@ -569,11 +580,10 @@ void generateRSAKeyPair(std::string &publicKey, std::string &privateKey, int bit
     publicKey.assign(publicKeyData, publicKeyLen);
 
     // Free resources
-    BN_free(bignum);
-    RSA_free(rsa);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(ctx);
     BIO_free_all(privateBIO);
     BIO_free_all(publicBIO);
 }
-
 
 #endif

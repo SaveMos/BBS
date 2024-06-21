@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
    cout << secondDifference(ta , ts) << endl;
 
    cout << getCurrentTimestamp() << endl;
-
+    /*
    cout<< generateRandomSalt(4)<<endl;
    cout<< generateRandomSalt(4)<<endl;
    cout<< generateRandomSalt(4)<<endl;
@@ -71,4 +71,5 @@ int main(int argc, char *argv[])
 
     std::cout << "Public Key: " << std::endl << publicKey << std::endl;
     std::cout << "Private Key: " << std::endl << privateKey << std::endl;
+    */
 }
