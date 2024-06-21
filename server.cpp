@@ -9,6 +9,7 @@
 #include <thread>
 #include <iostream>
 
+
 #define MAXIMUM_NUMBER_OF_THREAD 100
 #define MAXIMUM_REQUEST_NUMBER 1000
 #define SNAPSHOT_PERIOD 30
@@ -220,7 +221,6 @@ bool checkUserEmail(string inputEmail)
 
 void refreshConnectionInformation(string inputNickname, int sd, string type)
 {
-    mutexConnections.lock();
     const size_t size = connections.size();
     for (size_t i = 0; i < size; i++)
     {
@@ -238,7 +238,6 @@ void refreshConnectionInformation(string inputNickname, int sd, string type)
             }
         }
     }
-    mutexConnections.unlock();
 }
 
 void loadSnapshot()
@@ -300,10 +299,10 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
     bool valid = false;
 
     do{
-        
         // Receive the encrypted message and HMAC from the client
         std::string encryptedMessage = receiveString(socketDescriptor);
         std::string receivedHmac = receiveString(socketDescriptor);
+         
         //cout<<"encrypted email received from the client: "<<encryptedMessage<<endl;
         // Decript the message with AES
         std::vector<unsigned char> encryptedMessageVec(encryptedMessage.begin(), encryptedMessage.end());
@@ -525,29 +524,43 @@ void BBSsession(int socketDescriptor, string nickNameRecv)
     doSnapshot();
 }
 
+//load the RSA server private key from the file
+EVP_PKEY* loadServerPrivateKey() {
+    return loadRSAKey(PRIVATE_KEY_PATH, false);
+}
+
 void threadServerCode(int new_sd)
 {
     string nickNameSession = "";                          // Temporary variable that keeps the nickname of the user that have just logged in.
     bool howItEnded = false;                              // It becomes true if the procedure goes fine.
     string status = "";                                   // Explain the result of the procedure.
+    
+    //---------------------------------------------------------------------------------------------------------
+    // load the private key of the server
+    serverPrivateKey = loadServerPrivateKey();
+    //cout<<"server privare key: "<<serverPrivateKey<<endl;
+    //---------------------------------------------------------------------------------------------------------
+
     //---------------------------------------------------------------------------------------------------------
     // Receive the encrypted AES key from the client
     encryptedAesKey = receiveString(new_sd);
-    //cout<<"encrypted aes key received from the client: "<<encryptedAesKey<<endl;
+    //cout<<"encrypted aes key received from the client: "<<toHex(encryptedAesKey)<<endl;
+    //cout<<"server private key: "<<toHex(convertPrivateEVP_PKEYToString(serverPrivateKey))<<endl;
     // Decrypt AES key with the RSA private key of the server
     aesKey = rsa_decrypt(encryptedAesKey, serverPrivateKey);
     //-----------------------------------------------------------------------------------------------------------
-
+    //cout<<"Thread server code: dopo aver decifrato rsa"<<endl;
     const int requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
-
+    
     if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
     {
         registerationProcedure(new_sd, howItEnded, status, nickNameSession);
         if (howItEnded)
-        {
+        {  
             // If the registration went fine...
             BBSsession(new_sd, nickNameSession); // The actual session.
         }
+       
         close(new_sd);
     }
     else if (requestType == LOGIN_REQUEST_TYPE) // Registration.
@@ -563,10 +576,6 @@ void threadServerCode(int new_sd)
     }
 }
 
-//load the RSA server private key from the file
-EVP_PKEY* loadServerPrivateKey() {
-    return loadRSAKey(PRIVATE_KEY_PATH, false);
-}
 
 int main()
 {
@@ -576,6 +585,14 @@ int main()
     fd_set readFds;
     std::vector<std::thread> threads;
     std::mutex clientSocketsMutex; // Mutex for synchronizing access to clientSockets vector.
+
+     
+    //---------------------------------------------------------------------------------------------------------
+    // load the private key of the server
+    //serverPrivateKey = loadServerPrivateKey();
+    //cout<<"server privare key: "<<serverPrivateKey<<endl;
+    //---------------------------------------------------------------------------------------------------------
+
 
     //load each file in the respective vector
     loadSnapshot();
@@ -591,7 +608,7 @@ int main()
     */
     thread snapshotter(periodicSnaphot);
     snapshotter.detach();
-
+    
     thread connectionListChecker(periodicCheckOfTheConnectionsList);
     connectionListChecker.detach();
 
@@ -621,12 +638,7 @@ int main()
         return 1;
     }
 
-    //---------------------------------------------------------------------------------------------------------
-    // load the private key of the server
-    serverPrivateKey = loadServerPrivateKey();
-    //cout<<"server privare key: "<<serverPrivateKey<<endl;
-    //---------------------------------------------------------------------------------------------------------
-
+    
     std::cout << "Server is listening on port 8080..." << std::endl;
 
     while (true)

@@ -12,6 +12,7 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 
+
 using namespace std;
 
 
@@ -59,7 +60,7 @@ int main()
     //cout<<"aes key client "<<aesKey<<endl;
     // encrypt AES key with the RSA public key of the server
     std::string encryptedAesKey = rsa_encrypt(std::string(aesKey.begin(), aesKey.end()), serverPublicKey);
-    //cout<<"encrypted aes key"<<encryptedAesKey<<endl;
+    //cout<<"encrypted aes key"<<toHex(encryptedAesKey)<<endl;
     // send the encrypted AES key to the server
     sendString(sd, encryptedAesKey);
     //---------------------------------------------------------------------------------------------------------
