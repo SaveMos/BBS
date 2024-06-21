@@ -17,6 +17,7 @@
 
 
 #include "utilityFile.h"
+#include "utility.h"
 #include "configuration.h"
 
 using namespace std;
@@ -319,7 +320,7 @@ EVP_PKEY *convertToEVP_PKEY(const std::string &privateKeyStr)
 
 
 // Funzione per convertire un EVP_PKEY* in una stringa contenente una chiave privata
-std::string convertEVP_PKEYToString(const EVP_PKEY *pkey) {
+std::string convertPrivateEVP_PKEYToString(const EVP_PKEY *pkey) {
     BIO *bio = BIO_new(BIO_s_mem());
     if (!bio) {
         throw std::runtime_error("Errore nella creazione del BIO");
@@ -338,6 +339,33 @@ std::string convertEVP_PKEYToString(const EVP_PKEY *pkey) {
 
     BIO_free(bio);
     return privateKeyStr;
+}
+
+
+
+// Helper function to convert EVP_PKEY to std::string
+std::string convertPublicEVP_PKEYToString(const EVP_PKEY *pkey) {
+    std::unique_ptr<BIO, decltype(&BIO_free)> bio(BIO_new(BIO_s_mem()), BIO_free);
+    if (!PEM_write_bio_PUBKEY(bio.get(), pkey)) {
+        throw std::runtime_error("Error writing public key to BIO");
+    }
+
+    BUF_MEM *bufferPtr;
+    BIO_get_mem_ptr(bio.get(), &bufferPtr);
+    BIO_set_close(bio.get(), BIO_NOCLOSE);
+
+    std::string publicKey(bufferPtr->data, bufferPtr->length);
+    return publicKey;
+}
+
+// Helper function to convert std::string to EVP_PKEY
+EVP_PKEY* convertStringToPublicEVP_PKEY(const std::string& publicKeyStr) {
+    std::unique_ptr<BIO, decltype(&BIO_free)> bio(BIO_new_mem_buf(publicKeyStr.data(), publicKeyStr.length()), BIO_free);
+    EVP_PKEY *pkey = PEM_read_bio_PUBKEY(bio.get(), nullptr, nullptr, nullptr);
+    if (!pkey) {
+        throw std::runtime_error("Error reading public key from BIO");
+    }
+    return pkey;
 }
 
 
@@ -537,6 +565,72 @@ std::string rsa_decrypt(const std::string &cipherText, EVP_PKEY *pkey)
     return plainText;
 }
 
+// Function to create a digital signature as a vector of unsigned char
+std::vector<unsigned char> createDigitalSignature(const std::string& message, EVP_PKEY *pkey) {
+    EVP_MD_CTX *mdCtx = EVP_MD_CTX_new();
+    if (!mdCtx) {
+        throw std::runtime_error("Failed to create message digest context");
+    }
+
+    if (EVP_DigestSignInit(mdCtx, nullptr, EVP_sha256(), nullptr, pkey) <= 0) {
+        EVP_MD_CTX_free(mdCtx);
+        throw std::runtime_error("Failed to initialize signing operation");
+    }
+
+    if (EVP_DigestSignUpdate(mdCtx, message.c_str(), message.size()) <= 0) {
+        EVP_MD_CTX_free(mdCtx);
+        throw std::runtime_error("Failed to add message to signing operation");
+    }
+
+    size_t signatureLen;
+    if (EVP_DigestSignFinal(mdCtx, nullptr, &signatureLen) <= 0) {
+        EVP_MD_CTX_free(mdCtx);
+        throw std::runtime_error("Failed to finalize signing operation to get signature length");
+    }
+
+    std::vector<unsigned char> signature(signatureLen);
+    if (EVP_DigestSignFinal(mdCtx, signature.data(), &signatureLen) <= 0) {
+        EVP_MD_CTX_free(mdCtx);
+        throw std::runtime_error("Failed to finalize signing operation to get the actual signature");
+    }
+
+    EVP_MD_CTX_free(mdCtx);
+
+    return signature;
+}
+
+// Function to verify a digital signature
+bool verifyDigitalSignature(const std::string& message, const std::vector<unsigned char>& signature, EVP_PKEY *pkey) {
+    // Create the message digest context
+    EVP_MD_CTX *mdCtx = EVP_MD_CTX_new();
+    if (!mdCtx) {
+        throw std::runtime_error("Failed to create message digest context");
+    }
+
+    // Initialize the verification operation
+    if (EVP_DigestVerifyInit(mdCtx, nullptr, EVP_sha256(), nullptr, pkey) <= 0) {
+        EVP_MD_CTX_free(mdCtx);
+        throw std::runtime_error("Failed to initialize verification operation");
+    }
+
+    // Add the message to be verified
+    if (EVP_DigestVerifyUpdate(mdCtx, message.c_str(), message.size()) <= 0) {
+        EVP_MD_CTX_free(mdCtx);
+        throw std::runtime_error("Failed to add message to verification operation");
+    }
+
+    // Perform the verification
+    int result = EVP_DigestVerifyFinal(mdCtx, signature.data(), signature.size());
+
+    EVP_MD_CTX_free(mdCtx);
+
+    return result == 1;
+}
+
+bool verifyDigitalSignature(const std::string& message, const std::string& signature, EVP_PKEY *pkey) {
+    vector<unsigned char> vec = stringToVectorUnsignedChar(signature);
+    return verifyDigitalSignature(message , vec , pkey);
+}
 // --------------- Generazione Numero Random --------------------------------------------------------------------------------
 
 

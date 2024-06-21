@@ -5,6 +5,8 @@
 #include "timestampLibrary.h"
 #include "configuration.h"
 
+#include "messageStructures/RSAEMessage.h"
+
 using namespace std;
 
 int main(int argc, char *argv[])
@@ -30,7 +32,7 @@ int main(int argc, char *argv[])
    
     const EVP_MD* md1 = EVP_sha256();
     cout << "HMAC1: " << calculateHMAC(key , plaintext , md1) << endl;
-    */
+    
    string ts = "2024-06-20 11:17:03.958";
    string ta = "2024-06-20 11:17:43.958";
 
@@ -38,7 +40,7 @@ int main(int argc, char *argv[])
    cout << secondDifference(ta , ts) << endl;
 
    cout << getCurrentTimestamp() << endl;
-    /*
+    
    cout<< generateRandomSalt(4)<<endl;
    cout<< generateRandomSalt(4)<<endl;
    cout<< generateRandomSalt(4)<<endl;
@@ -72,4 +74,30 @@ int main(int argc, char *argv[])
     std::cout << "Public Key: " << std::endl << publicKey << std::endl;
     std::cout << "Private Key: " << std::endl << privateKey << std::endl;
     */
+
+    RSAEMessage mess;
+    string conc , check;
+    int R = 100;
+
+    mess.setCert("CERTIFICATOAOOO");
+    mess.setPublicKey(loadRSAKey(true));
+    
+    mess.computeDigitalFirm(R);
+
+    cout << "1 Esito: " << mess.verifyDigitalFirm(R) << endl;
+    mess.concatenateFields(check);
+
+    mess.deconcatenateAndAssign(check);
+    mess.computeDigitalFirm(R);
+    cout << "1 Esito: " << mess.verifyDigitalFirm(R) << endl;
+    R = 120;
+    cout << "0 Esito: " << mess.verifyDigitalFirm(R) << endl;
+    mess.concatenateFields(check);
+
+    mess.deconcatenateAndAssign(check);
+    R = 120;
+    mess.computeDigitalFirm(R);
+    cout << "1 Esito: " << mess.verifyDigitalFirm(R) << endl;
+    mess.concatenateFields(check);
+
 }

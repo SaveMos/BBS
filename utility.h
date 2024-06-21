@@ -26,6 +26,7 @@ std::vector<std::string> divideString(const std::string& str, char delimiter = '
     return result;
 }
 
+
 void substituteWhiteSpaces(string& input, bool to_from){
     const unsigned int size = input.length();
     for(unsigned int i = 0 ; i < size ; i++){
@@ -72,6 +73,16 @@ std::string toHex(const std::string& data) {
         hexStr.append(buf);
     }
     return hexStr;
+}
+
+// Funzione per convertire std::vector<unsigned char> in std::string
+std::string vectorUnsignedCharToString(const std::vector<unsigned char>& vec) {
+    return std::string(vec.begin(), vec.end());
+}
+
+// Funzione per convertire std::string in std::vector<unsigned char>
+std::vector<unsigned char> stringToVectorUnsignedChar(const std::string& str) {
+    return std::vector<unsigned char>(str.begin(), str.end());
 }
 
 

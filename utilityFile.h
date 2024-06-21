@@ -38,30 +38,31 @@ void clearFileContent(const string& filename) {
 
 //insert all the users inside the file of users
 void insertUserInFile(vector<userBBS> userList){
-   
     string filename("fileStorage/userFile.txt");
-    //delete the content of the entire file
+    // Delete the content of the entire file
     clearFileContent(filename);          
 
     fstream userFile;
-    userFile.open(filename, std::fstream::app);         //open the file in append
+    userFile.open(filename, std::fstream::app); // Open the file in append.
     
     if (userFile.is_open()) {
         //ad a row in the file for each user
         for(uint64_t i = 0; i < userList.size(); i++){
-            userFile << userList.at(i).getNickname() + "-" +  userList.at(i).getPasswordDigest() + "-" + userList.at(i).getEmail() << endl;
+            userFile << userList.at(i).getNickname() + "-" +
+            userList.at(i).getPasswordDigest() + "-" + 
+            userList.at(i).getSalt() + "-" +   
+            userList.at(i).getEmail() << endl;
         }
        
     } else {
         cout << "Error during the file opening" << endl;
     }
 
-    userFile.close();       //close file
+    userFile.close(); // Close the file.
 }
 
 //insert all the users from the file into the vector
 void insertUserInVector(vector<userBBS>& userList){
-   
     ifstream filename("fileStorage/userFile.txt");
     
    if (filename.is_open()) {
@@ -79,10 +80,9 @@ void insertUserInVector(vector<userBBS>& userList){
             userBBS newUser;
             newUser.setNickname(ret.at(0));
             newUser.setPasswordDigest(ret.at(1));
-            newUser.setEmail(ret.at(2));
-            //insert inside the vector
-            userList.push_back(newUser);
-
+            newUser.setSalt(ret.at(2));
+            newUser.setEmail(ret.at(3));
+            userList.push_back(newUser); // tail-insert the user inside the user list.
             ret.clear();
         }
 
@@ -118,9 +118,7 @@ void insertMessageInFile(vector<messageBBS> messageList){
 
 //insert all the messages from the file into the vector
 void insertMessageInVector(vector<messageBBS>& messageList){
-   
     ifstream filename("fileStorage/messageFile.txt");
-    
    if (filename.is_open()) {
 
         string line;
@@ -128,16 +126,8 @@ void insertMessageInVector(vector<messageBBS>& messageList){
        
         //for each line of the file extract all the attributes of a message and insert it into the vector
         while (getline(filename, line)) {
-
             // Here we must decrypt the line.
-
             deconcatenateFields(ret, line);
-            
-            //convert a string into a u_int32_t for the id field
-            //uint32_t id;
-            //stringstream ss(ret.at(0));     // create a stringstream with the string
-            //ss >> id;   // convert the value
-
             //assign each attribute to the user
             messageBBS newMessage;
             newMessage.setId(stoi(ret.at(0)));  //convert a string into a u_int32_t for the id field

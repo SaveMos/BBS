@@ -1,4 +1,5 @@
 #include <string>
+#include <sstream>
 using namespace std;
 
 #ifndef USERBBS_H
@@ -57,7 +58,6 @@ public:
     {
         return this->email;
     }
-
     // Metodo get per ottenere il valore di passwordDigest
     string getPasswordDigest()
     {
@@ -69,39 +69,69 @@ public:
         return this->salt;
     }
 
-    void concatenateFields(string &ret)
+    void concatenateFields(string &str)
     {
-        ret = this->nickname + "|" + this->passwordDigest + "|" + this->salt + "|" + this->email + "\n";
-    }
-
-    void deconcatenateFields(vector<string> &ret, string &input)
-    {
-        const char delimiter = '|';
-        size_t pos = input.find(delimiter); // Find the position of the first delimiter character
-
-        while (pos != std::string::npos)
-        {
-            std::string parte = input.substr(0, pos); // get the first substring before the delimiter
-            ret.push_back(parte);                     // add the substring to the vector
-            input = input.substr(pos + 1);            // remove the extracted substring from the original string
-            pos = input.find(delimiter);              // find the new position of the next delimiter character
-        }
-        ret.push_back(input); // add the last substring to the vector
+        ostringstream oss;
+        const char delimeter = '-';
+        oss << this->nickname.length() << delimeter
+            << this->email.length() << delimeter
+            << this->salt.length() << delimeter
+            << this->passwordDigest.length() << delimeter
+            << this->nickname
+            << this->email
+            << this->salt
+            << this->passwordDigest;
+        str = oss.str();
     }
 
     void deconcatenateAndAssign(string &input)
     {
-        vector<string> fields;
-        this->deconcatenateFields(fields, input);
-        this->setNickname(fields.at(0));
-        this->setPasswordDigest(fields[1]);
-        this->setSalt(fields[2]);
-        this->setEmail(fields[3]);
+        if (input.size() <= 15)
+        {
+            return;
+        }
+
+        vector<string> stringVector;
+        this->deconcatenateFields(stringVector, input);
+        if (stringVector.size() == 4)
+        {
+            this->nickname = stringVector[0];
+            this->email = stringVector[1];
+            this->salt = stringVector[2];
+            this->passwordDigest = stringVector[3];
+        }
     }
 
-    bool checkPassword(string& inputPassword)
+    void deconcatenateFields(vector<string> &result, string &input)
     {
-        string tempInputPassword = inputPassword + this->salt ;
+        result.clear();
+        istringstream iss(input);
+        string part;
+
+        // Read the lengths
+        int lengthNickname, lengthEmail, lengthSalt, lengthPasswordDigest;
+        getline(iss, part, '-');
+        lengthNickname = stoi(part);
+        getline(iss, part, '-');
+        lengthEmail = stoi(part);
+        getline(iss, part, '-');
+        lengthSalt = stoi(part);
+        getline(iss, part, '-');
+        lengthPasswordDigest = stoi(part);
+
+        // Read the actual fields based on the lengths
+        result.push_back(input.substr(iss.tellg(), lengthNickname));
+        iss.seekg(iss.tellg() + streampos(lengthNickname));
+        result.push_back(input.substr(iss.tellg(), lengthEmail));
+        iss.seekg(iss.tellg() + streampos(lengthEmail));
+        result.push_back(input.substr(iss.tellg(), lengthSalt));
+        iss.seekg(iss.tellg() + streampos(lengthSalt));
+        result.push_back(input.substr(iss.tellg(), lengthPasswordDigest));
+    }
+
+    bool checkPassword(string &inputPassword)
+    {
+        const string tempInputPassword = inputPassword + this->salt;
         if (this->computeHash(tempInputPassword) == this->passwordDigest)
         {
             return true;
@@ -112,9 +142,39 @@ public:
         }
     }
 
-    string computeHash(string& inputString)
+    bool checkPassword(const string &inputPassword)
     {
-        return inputString;
+        const string tempInputPassword = inputPassword + this->salt;
+        if (this->computeHash(tempInputPassword) == this->passwordDigest)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    string computeHash(string &inputString)
+    {
+        const string tempInputPassword = inputString + this->salt;
+        return this->computeHash(tempInputPassword);
+    }
+
+    string computeHash(const string &inputString)
+    {
+        const string tempInputPassword = inputString + this->salt;
+        return this->computeHash(tempInputPassword);
+    }
+
+    void computePasswordHash(string &inputString)
+    {
+        this->passwordDigest = this->computeHash(inputString);
+    }
+
+    void computePasswordHash(const string &inputString)
+    {
+        this->passwordDigest = this->computeHash(inputString);
     }
 };
 

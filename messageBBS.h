@@ -47,7 +47,6 @@ public:
         id = static_cast<uint32_t>(newId);
     }
 
-
     void setAuthor(string newAuthor)
     {
         author = newAuthor;
@@ -84,17 +83,53 @@ public:
         return body;
     }
 
-    void concatenateFields(string &ret)
-    {
-        ret = to_string(this->id) + "|" + this->author + "|" + this->title + "|" + this->body + "\0";
+    void concatenateFields(string &str) {
+        ostringstream oss;
+        const char delimiter = '-';
+        oss << this->id << delimiter
+            << this->author.length() << delimiter
+            << this->title.length() << delimiter
+            << this->body.length() << delimiter
+            << this->author
+            << this->title
+            << this->body;
+        str = oss.str();
     }
 
-    void deconcatenateAndAssign(string &input){
-        vector<string> fields = divideString(input , '-');
-        this->setId(stoi(fields.at(0)));
-        this->setAuthor(fields[1]);
-        this->setTitle(fields[2]);
-        this->setBody(fields[3]);
+    void deconcatenateAndAssign(string& input) {
+        vector<string> stringVector;
+        this->deconcatenateFields(stringVector, input);
+        if (stringVector.size() == 3) {
+            this->author = stringVector[0];
+            this->title = stringVector[1];
+            this->body = stringVector[2];
+        }
+    }
+
+    void deconcatenateFields(vector<string> &result, string &input) {
+        result.clear();
+        istringstream iss(input);
+        string part;
+
+        // Read the id
+        getline(iss, part, '-');
+        this->id = stoul(part);
+
+        // Read the lengths
+        int lengthAuthor, lengthTitle, lengthBody;
+        getline(iss, part, '-');
+        lengthAuthor = stoi(part);
+        getline(iss, part, '-');
+        lengthTitle = stoi(part);
+        getline(iss, part, '-');
+        lengthBody = stoi(part);
+
+        // Read the actual fields based on the lengths
+        result.push_back(input.substr(iss.tellg(), lengthAuthor));
+        iss.seekg(iss.tellg() + streampos(lengthAuthor));
+        result.push_back(input.substr(iss.tellg(), lengthTitle));
+        iss.seekg(iss.tellg() + streampos(lengthTitle));
+        result.push_back(input.substr(iss.tellg(), lengthBody));
     }
 
     void computeMAC(string &MAC)
