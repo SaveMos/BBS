@@ -553,7 +553,10 @@ void threadServerCode(int new_sd)
     //-----------------------------------------------------------------------------------------------------------
     //cout<<"Thread server code: dopo aver decifrato rsa"<<endl;
     string recvReq = receiveString(new_sd);
-    simpleMessage
+    simpleMessage recvMsg;
+    recvMsg.deconcatenateAndAssign(recvReq);
+    vector<string> 
+
     const int requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
     
     if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
