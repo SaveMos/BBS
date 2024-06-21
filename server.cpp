@@ -376,11 +376,14 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
             sendString(socketDescriptor, status);
 
             // Check if the nickname have already been used.
-            uint32_t sendChallenge = 1234;
-            uint32_t recvChallenge = 1234; // The challenge.
+            int sendChallenge = generate_secure_random_int();
+            int recvChallenge; // The challenge.
 
+            sendChallenge = abs(sendChallenge);
             sendIntegerNumber(socketDescriptor, sendChallenge);     // Send the challenge.
+
             recvChallenge = receiveIntegerNumber(socketDescriptor); // Receive the challenge.
+           
 
             if (recvChallenge == sendChallenge){
                 // Challenge win!
@@ -401,6 +404,11 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
                 status = "User registered!";
                 sendIntegerNumber(socketDescriptor, 1);
                 nickName = nickNameRecv; // save the nickname for later.
+                return;
+            }else{
+                cout<<"challenge not valid, client disconnected"<<endl;
+                sendIntegerNumber(socketDescriptor, -1);
+                close(socketDescriptor);
                 return;
             }
         }

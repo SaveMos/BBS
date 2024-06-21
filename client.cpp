@@ -150,8 +150,12 @@ int main()
         
 
         // CHALLENGE
-        int requestType = receiveIntegerNumber(sd);
-        sendIntegerNumber(sd, requestType);
+        int recvChallenge = receiveIntegerNumber(sd);
+        int sendChallenge;
+        cout<<"Received challenge: "<<recvChallenge<<endl;
+        cout<<"Send the same value to the server"<<endl;
+        cin>>sendChallenge;
+        sendIntegerNumber(sd, sendChallenge);
 
     }else if (requestString == "log"){
         // Login Test
@@ -337,6 +341,8 @@ int main()
                 cout << "ERROR - Command not valid" << endl;
             }
         }
+    }else if(res == -1){
+          cout << "\nThe challenge sent is wrong!\n"<< endl;
     }
     else{
        

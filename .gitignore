@@ -4,3 +4,6 @@ progClr
 progServer
 testing
 *.cpp
+testing
+*.cpp
+*.cpp
