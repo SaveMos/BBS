@@ -570,6 +570,8 @@ void threadServerCode(int new_sd)
     bool howItEnded = false;     // It becomes true if the procedure goes fine.
     string status = "";          // Explain the result of the procedure.
 
+   
+    //cout<<"string received from the client"<<receiveString(new_sd , K)<<endl;
     string recvReq = receiveString(new_sd);
     SimpleMessage simpleMsg;
     simpleMsg.deconcatenateAndAssign(recvReq);

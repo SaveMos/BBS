@@ -81,6 +81,7 @@ int main()
     SimpleMessage helloMsg;
     const uint64_t R = generate_secure_random_64_unsigned_int();
     const string K = generateRandomKey(64);
+    //sendString(sd , "ciao" , K);
 
     if (requestString == "reg")
     {
