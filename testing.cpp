@@ -52,7 +52,6 @@ int main(int argc, char *argv[])
         global_test = false;
     }
 
-
     RSAEMessage mess;
     string conc, check;
     int R = 100;
@@ -97,128 +96,50 @@ int main(int argc, char *argv[])
     }
 
     mess.concatenateFields(check);
-
-<<<<<<< Updated upstream
-    
-
-/*  TEST CONVERSIONE DA EVP_PKEY A STRINGA
-   EVP_PKEY *pkey = EVP_PKEY_new();
-   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
-   if (EVP_PKEY_keygen_init(ctx) <= 0) {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore nell'inizializzazione della generazione della chiave");
-    }
-   if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0) {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore nell'impostazione della lunghezza della chiave RSA");
-    }
-   if (EVP_PKEY_keygen(ctx, &pkey) <= 0) {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore nella generazione della chiave RSA");
-   }
-
-   // Convertire la chiave privata in una stringa
-   try {
-        std::string privateKeyStr = convertEVP_PKEYToString(pkey);
-        std::cout << "Chiave privata: " << std::endl << privateKeyStr << std::endl;
-   } catch (const std::exception &e) {
-        std::cerr << "Errore: " << e.what() << std::endl;
-        EVP_PKEY_free(pkey);
-        EVP_PKEY_CTX_free(ctx);
-        return 1;
-   }
-
-   // Pulire le risorse
-   EVP_PKEY_free(pkey);
-   EVP_PKEY_CTX_free(ctx);
-   */
-
-  /*TEST CONVERSIONE DA EVP_PKEY A vector<char>
-// Esempio di generazione di una chiave RSA
-    EVP_PKEY *pkey = EVP_PKEY_new();
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
-    if (EVP_PKEY_keygen_init(ctx) <= 0) {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore nell'inizializzazione della generazione della chiave");
-    }
-    if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0) {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore nell'impostazione della lunghezza della chiave RSA");
-    }
-    if (EVP_PKEY_keygen(ctx, &pkey) <= 0) {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore nella generazione della chiave RSA");
-    }
-
-    // Convertire la chiave privata in std::vector<unsigned char>
-    try {
-        std::vector<unsigned char> keyVec = convertEVP_PKEYToVector(pkey);
-        std::cout << "Chiave privata convertita con successo in std::vector<unsigned char>!" << std::endl;
-
-        // Converti i byte in una stringa
-        std::string keyStr(keyVec.begin(), keyVec.end());
-
-        // Visualizza la stringa
-        std::cout << "Contenuto di keyVec:" << std::endl;
-        std::cout << keyStr << std::endl;
-
-    } catch (const std::exception &e) {
-        std::cerr << "Errore: " << e.what() << std::endl;
-        EVP_PKEY_free(pkey);
-        EVP_PKEY_CTX_free(ctx);
-        return 1;
-    }
-
-    // Pulire le risorse
-    EVP_PKEY_free(pkey);
-    EVP_PKEY_CTX_free(ctx);
-    */
-
-=======
     userBBS user;
     user.setNickname("Pini");
     user.setEmail("pini@gmail.com");
     user.setSalt(generateRandomSalt());
     string password = "Pini";
-    user.setPasswordDigest(computePasswordHash(password , user.getSalt()));
-    if (!checkSaltedPasswordDigest(password  , user.getPasswordDigest() , user.getSalt()))
+    user.setPasswordDigest(computeHash(password, user.getSalt()));
+    if (!checkSaltedPasswordDigest(password, user.getPasswordDigest(), user.getSalt()))
     {
         cout << "La prima verifica della password utente NON funziona" << endl;
         global_test = false;
     }
 
     password = password + "a";
-    if (checkSaltedPasswordDigest(password , user.getPasswordDigest() , user.getSalt()))
+    if (checkSaltedPasswordDigest(password, user.getPasswordDigest(), user.getSalt()))
     {
         cout << "La seconda verifica della password utente NON funziona" << endl;
         global_test = false;
     }
 
     password = " " + password;
-    if (checkSaltedPasswordDigest(password , user.getPasswordDigest() , user.getSalt()))
+    if (checkSaltedPasswordDigest(password, user.getPasswordDigest(), user.getSalt()))
     {
         cout << "La seconda verifica della password utente NON funziona" << endl;
         global_test = false;
     }
 
     password = password + "-";
-    if (checkSaltedPasswordDigest(password , user.getPasswordDigest() , user.getSalt()))
+    if (checkSaltedPasswordDigest(password, user.getPasswordDigest(), user.getSalt()))
     {
         cout << "La seconda verifica della password utente NON funziona" << endl;
         global_test = false;
     }
 
     password = "-" + password;
-    if (checkSaltedPasswordDigest(password , user.getPasswordDigest() , user.getSalt()))
+    if (checkSaltedPasswordDigest(password, user.getPasswordDigest(), user.getSalt()))
     {
         cout << "La seconda verifica della password utente NON funziona" << endl;
         global_test = false;
     }
 
-    if(global_test){
+    if (global_test)
+    {
         cout << "Tutto OK!" << endl;
     }
 
     return 0;
->>>>>>> Stashed changes
 }

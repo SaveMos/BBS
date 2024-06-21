@@ -30,7 +30,7 @@ void handleErrors()
     abort();
 }
 
-std::string computeHash(const std::string &input) {
+std::string computeHash(string input, string salt = "") {
     // Creazione del contesto
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (mdctx == nullptr) {
@@ -48,6 +48,12 @@ std::string computeHash(const std::string &input) {
     if (1 != EVP_DigestInit_ex(mdctx, md, nullptr)) {
         EVP_MD_CTX_free(mdctx);
         throw std::runtime_error("EVP_DigestInit_ex failed");
+    }
+
+    // Aggiornamento del contesto con il salt
+    if (1 != EVP_DigestUpdate(mdctx, salt.c_str(), salt.size())) {
+        EVP_MD_CTX_free(mdctx);
+        throw std::runtime_error("EVP_DigestUpdate failed");
     }
 
     // Aggiornamento del contesto con i dati
@@ -152,16 +158,9 @@ std::string calculateHMAC(const std::string &key, const std::string &message, co
     return hmac;
 }
 
-string computePasswordHash(string inputPassword, string salt = "")
-{
-    string input = inputPassword + salt;
-    return computeHash(input);
-}
-
-
 bool checkSaltedPasswordDigest(string inputPassword, string passwordDigest,  string salt = "")
 {
-    if (computePasswordHash(inputPassword, salt) == passwordDigest)
+    if (computeHash(inputPassword, salt) == passwordDigest)
     {
         return true;
     }
