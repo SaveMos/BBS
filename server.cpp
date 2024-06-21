@@ -35,11 +35,9 @@ vector<userBBS> userList;
 vector<thread> threadMixer; // Vector of the threads descriptors.
 vector<connectionInformation> connections;
 
-
 EVP_PKEY *serverPrivateKey;
 std::string encryptedAesKey;
 std::string aesKey;
-
 
 string List(int n)
 {
@@ -131,11 +129,14 @@ void periodicCheckOfTheBoard()
     // This function should check for delete non valid messages.
 }
 
-void doConnectionListCheck(){
+void doConnectionListCheck()
+{
     mutexConnections.lock();
-    const size_t size =  connections.size();
-    for(size_t i = 0 ; i < size; i++){
-        if(!connections[i].checkValidityOfTheConnection() && connections[i].getLogged() == true){
+    const size_t size = connections.size();
+    for (size_t i = 0; i < size; i++)
+    {
+        if (!connections[i].checkValidityOfTheConnection() && connections[i].getLogged() == true)
+        {
             // Connessione scaduta, l'utente ha chiuso il programma senza fare logout o è inattivo da troppo tempo.
             connections[i].setLogged(false);
         }
@@ -145,18 +146,22 @@ void doConnectionListCheck(){
 
 void periodicCheckOfTheConnectionsList()
 {
-    while(true){
+    while (true)
+    {
         this_thread::sleep_for(std::chrono::seconds(CONNECTION_INFO_CHECK_PERIOD));
         doConnectionListCheck();
     }
 }
 
-bool getConnectionInfoOfUser(string inputNickname, connectionInformation& conn){
+bool getConnectionInfoOfUser(string inputNickname, connectionInformation &conn)
+{
     bool found = false;
     mutexConnections.lock();
-    const size_t size =  connections.size();
-    for(size_t i = 0 ; i < size; i++){
-        if(connections[i].getNickname() == inputNickname){
+    const size_t size = connections.size();
+    for (size_t i = 0; i < size; i++)
+    {
+        if (connections[i].getNickname() == inputNickname)
+        {
             conn = connections[i];
             found = true;
             break;
@@ -165,7 +170,6 @@ bool getConnectionInfoOfUser(string inputNickname, connectionInformation& conn){
     mutexConnections.unlock();
     return found;
 }
-
 
 bool checkUserList(string inputNickname, userBBS &us)
 {
@@ -207,7 +211,7 @@ bool checkUserEmail(string inputEmail)
     bool res = false;
     mutexUserList.lock();
     const uint64_t size = userList.size();
-    
+
     for (uint64_t i = 0; i < size; i++)
     {
         if (userList[i].getEmail() == inputEmail)
@@ -216,7 +220,7 @@ bool checkUserEmail(string inputEmail)
             break;
         }
     }
-     
+
     mutexUserList.unlock();
     return res;
 }
@@ -263,117 +267,139 @@ void doSnapshot()
     mutexFileStorage.unlock();
 }
 
-void periodicSnaphot(){
-    while(true){
+void periodicSnaphot()
+{
+    while (true)
+    {
         this_thread::sleep_for(std::chrono::seconds(SNAPSHOT_PERIOD));
         doSnapshot();
     }
 }
 
-uint8_t checkUserConnectionInfoAtLoginOrRegistration(string& nickname){
+uint8_t checkUserConnectionInfoAtLoginOrRegistration(string &nickname)
+{
     connectionInformation conn;
-   
-    if(getConnectionInfoOfUser(nickname , conn)){
+
+    if (getConnectionInfoOfUser(nickname, conn))
+    {
         // There exists a connection of this user...
-        if(conn.getLogged()){
+        if (conn.getLogged())
+        {
             // The user is already logged!
             return 1;
         }
 
-        if(!conn.checkValidityOfTheConnection()){
+        if (!conn.checkValidityOfTheConnection())
+        {
             // The connection info has errors!
             return 2;
-
         }
     }
     return 0;
 }
 
-void registerationProcedure(int socketDescriptor, bool &result, string &status, string &nickName)
+void registrationProcedure(int socketDescriptor, bool &result, string &status, string &nickName, string K)
 {
     string emailRecv; //= receiveString(socketDescriptor); // Receive the email from the client.
-    //cout << emailRecv << endl;
+    // cout << emailRecv << endl;
     string nickNameRecv; // = receiveString(socketDescriptor); // Receive the nickname from the client.
-    //cout << nickNameRecv << endl;
+    // cout << nickNameRecv << endl;
     string pwdRecv; // = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
-    //cout << pwdRecv << endl;
+    // cout << pwdRecv << endl;
     string pwdClear;
     bool valid = false;
 
-    do{
+    do
+    {
         // Receive the encrypted message and HMAC from the client
         std::string encryptedMessage = receiveString(socketDescriptor);
         std::string receivedHmac = receiveString(socketDescriptor);
-         
-        //cout<<"encrypted email received from the client: "<<encryptedMessage<<endl;
-        // Decript the message with AES
+
+        // cout<<"encrypted email received from the client: "<<encryptedMessage<<endl;
+        //  Decript the message with AES
         std::vector<unsigned char> encryptedMessageVec(encryptedMessage.begin(), encryptedMessage.end());
         emailRecv = decrypt_AES(encryptedMessageVec, aesKey);
-        
-        cout<<"enc email: "<<std::string(encryptedMessage.begin(), encryptedMessage.end())<<endl;
-       
+
+        cout << "enc email: " << std::string(encryptedMessage.begin(), encryptedMessage.end()) << endl;
+
         // Verify HMAC of encrypted message
         const EVP_MD *evp_md = EVP_sha256();
         std::string calculatedHmac = calculateHMAC(aesKey, std::string(encryptedMessage.begin(), encryptedMessage.end()), evp_md);
 
-        cout<<"calculatedHmac: "<<calculatedHmac<<"\n"<<"receivedHmac: "<<receivedHmac<<endl;
+        cout << "calculatedHmac: " << calculatedHmac << "\n"
+             << "receivedHmac: " << receivedHmac << endl;
 
-        if (calculatedHmac != receivedHmac) {
+        if (calculatedHmac != receivedHmac)
+        {
             throw std::runtime_error("Error: HMAC doesn't correspond, the message could have been alterated");
         }
 
-        //emailRecv = receiveString(socketDescriptor); // Receive the email from the client.
+        // emailRecv = receiveString(socketDescriptor); // Receive the email from the client.
         cout << emailRecv << endl;
 
-
-        if (!checkEmailFormat(emailRecv)){
+        if (!checkEmailFormat(emailRecv))
+        {
             result = false;
-            status = "ERROR - Wrong email format";    
-        }else if(checkUserEmail(emailRecv)){
+            status = "ERROR - Wrong email format";
+        }
+        else if (checkUserEmail(emailRecv))
+        {
             result = false;
             status = "ERROR - This email already exists";
-        }else{
+        }
+        else
+        {
             valid = true;
             status = "ok";
         }
 
         sendString(socketDescriptor, status);
 
-    }while(!valid);
+    } while (!valid);
 
     valid = false;
-    
-    do{
+
+    do
+    {
         nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
         cout << nickNameRecv << endl;
 
-        if (nickNameRecv.length() < 3){
+        if (nickNameRecv.length() < 3)
+        {
             result = false;
-            status = "ERROR - Nickname must be at least of 3 characters";    
-        }else if(checkUserList(nickNameRecv)){
+            status = "ERROR - Nickname must be at least of 3 characters";
+        }
+        else if (checkUserList(nickNameRecv))
+        {
             result = false;
             status = "ERROR - This nickname already exists";
-        }else{
+        }
+        else
+        {
             valid = true;
             status = "ok";
         }
 
         sendString(socketDescriptor, status);
 
-    }while(!valid);
-   
+    } while (!valid);
+
     valid = false;
 
-    do{
+    do
+    {
         pwdClear = receiveString(socketDescriptor);
         pwdRecv = computeHash(pwdClear); // Receive the clear password from the client; and immediately compute the hash.
         cout << pwdRecv << endl;
 
-        if (pwdClear.length() < 5){
+        if (pwdClear.length() < 5)
+        {
             result = false;
             status = "ERROR - The password must be at least of 5 characters";
-            sendString(socketDescriptor, status);    
-        }else{
+            sendString(socketDescriptor, status);
+        }
+        else
+        {
             valid = true;
             status = "ok";
             sendString(socketDescriptor, status);
@@ -383,14 +409,14 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
             int recvChallenge; // The challenge.
 
             sendChallenge = abs(sendChallenge);
-            sendIntegerNumber(socketDescriptor, sendChallenge);     // Send the challenge.
+            sendIntegerNumber(socketDescriptor, sendChallenge); // Send the challenge.
 
             recvChallenge = receiveIntegerNumber(socketDescriptor); // Receive the challenge.
-           
 
-            if (recvChallenge == sendChallenge){
+            if (recvChallenge == sendChallenge)
+            {
                 // Challenge win!
-                userBBS userRecv(nickNameRecv, generateRandomSalt(4),  "", emailRecv);
+                userBBS userRecv(nickNameRecv, generateRandomSalt(4), "", emailRecv);
                 userRecv.setPasswordDigest(pwdRecv);
 
                 mutexUserList.lock();
@@ -408,10 +434,12 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
                 sendIntegerNumber(socketDescriptor, 1);
                 nickName = nickNameRecv; // save the nickname for later.
                 return;
-            }else{
-                cout<<"challenge not valid, client disconnected"<<endl;
+            }
+            else
+            {
+                cout << "challenge not valid, client disconnected" << endl;
                 sendIntegerNumber(socketDescriptor, -1);
-                //close(socketDescriptor);
+                // close(socketDescriptor);
                 mutexConnections.lock();
                 refreshConnectionInformation(nickNameRecv, socketDescriptor, "logout");
                 mutexConnections.unlock();
@@ -419,57 +447,69 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
             }
         }
 
-    }while(!valid);
-    
+    } while (!valid);
+
     result = false;
     status = "Something went wrong!";
     sendIntegerNumber(socketDescriptor, 0);
 }
 
-void loginProcedure(int socketDescriptor, bool &result, string &status, string &nickName)
+void loginProcedure(int socketDescriptor, bool &result, string &status, string &nickName, string K)
 {
     string nickNameRecv, pwdRecv; // Receiving variables.
     userBBS usr;
     bool res = false;
     bool valid = false;
 
-    do{
-        nickNameRecv = receiveString(socketDescriptor);         // Receive the nickname from the client.
+    do
+    {
+        nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
 
-        if (nickNameRecv.length() == 0){
+        if (nickNameRecv.length() == 0)
+        {
             result = false;
             status = "ERROR - Empty nickname!";
-        }else if(!checkUserList(nickNameRecv, usr)){
+        }
+        else if (!checkUserList(nickNameRecv, usr))
+        {
             result = false;
             status = "ERROR - This nickname doesn't exists!";
-        }else{
+        }
+        else
+        {
             valid = true;
             status = "ok";
         }
 
         sendString(socketDescriptor, status);
 
-    }while(!valid);
+    } while (!valid);
 
     valid = false;
 
-    do{
+    do
+    {
         string pwd = receiveString(socketDescriptor);
         pwdRecv = computeHash(pwd); // Receive the clear password from the client; and immediately compute the hash.
 
-        if (pwdRecv.length() == 0){
+        if (pwdRecv.length() == 0)
+        {
             result = false;
             status = "ERROR - Empty password!";
             sendString(socketDescriptor, status);
-        }else if(usr.getPasswordDigest() != pwdRecv){
+        }
+        else if (usr.getPasswordDigest() != pwdRecv)
+        {
             result = false;
             status = "ERROR - Wrong password!";
             sendString(socketDescriptor, status);
-        }else{
+        }
+        else
+        {
             valid = true;
             status = "ok";
             sendString(socketDescriptor, status);
-            
+
             // if the password of the choosen nickname is correct.
             mutexConnections.lock();
             refreshConnectionInformation(nickNameRecv, socketDescriptor, "login");
@@ -481,18 +521,16 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
 
             nickName = nickNameRecv;
             return;
-
         }
 
-    }while(!valid);
+    } while (!valid);
 
-    
     result = false;
     status = "Something went wrong!";
     sendIntegerNumber(socketDescriptor, 0);
 }
 
-void BBSsession(int socketDescriptor, string nickNameRecv)
+void BBSsession(int socketDescriptor, string nickNameRecv, string K)
 {
     int requestType = 0;
     while (true)
@@ -526,60 +564,65 @@ void BBSsession(int socketDescriptor, string nickNameRecv)
     doSnapshot();
 }
 
-//load the RSA server private key from the file
-EVP_PKEY* loadServerPrivateKey() {
-    return loadRSAKey(PRIVATE_KEY_PATH, false);
-}
-
 void threadServerCode(int new_sd)
 {
-    string nickNameSession = "";                          // Temporary variable that keeps the nickname of the user that have just logged in.
-    bool howItEnded = false;                              // It becomes true if the procedure goes fine.
-    string status = "";                                   // Explain the result of the procedure.
-    
-    //---------------------------------------------------------------------------------------------------------
-    // load the private key of the server
-    serverPrivateKey = loadServerPrivateKey();
-    //cout<<"server privare key: "<<serverPrivateKey<<endl;
-    //---------------------------------------------------------------------------------------------------------
+    string nickNameSession = ""; // Temporary variable that keeps the nickname of the user that have just logged in.
+    bool howItEnded = false;     // It becomes true if the procedure goes fine.
+    string status = "";          // Explain the result of the procedure.
 
-    //---------------------------------------------------------------------------------------------------------
-    // Receive the encrypted AES key from the client
-    encryptedAesKey = receiveString(new_sd);
-    //cout<<"encrypted aes key received from the client: "<<toHex(encryptedAesKey)<<endl;
-    //cout<<"server private key: "<<toHex(convertPrivateEVP_PKEYToString(serverPrivateKey))<<endl;
-    // Decrypt AES key with the RSA private key of the server
-    aesKey = rsa_decrypt(encryptedAesKey, serverPrivateKey);
-    //-----------------------------------------------------------------------------------------------------------
-    //cout<<"Thread server code: dopo aver decifrato rsa"<<endl;
     string recvReq = receiveString(new_sd);
-    simpleMessage
-    const int requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
-    
-    if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
+    SimpleMessage simpleMsg;
+    simpleMsg.deconcatenateAndAssign(recvReq);
+
+    vector<string> requestAndR = divideString(simpleMsg.getContent(), '-');
+
+    const uint64_t R = stoull(requestAndR[1]);
+
+    // ------------------ BEGIN RSAE ---------------------------
+
+    string Tpubkey, Tprivkey;
+    generateRSAKeyPair(Tpubkey, Tprivkey);
+
+    RSAEMessage messageRSAE;
+    messageRSAE.setPublicKey(Tpubkey);
+    messageRSAE.computeDigitalFirm(R, convertStringToPrivateEVP_PKEY(Tprivkey));
+    messageRSAE.setCert("Certificato");
+
+    messageRSAE.concatenateFields(recvReq);
+
+    sendString(new_sd, recvReq); // Send the RSAE Message
+
+    recvReq = receiveString(new_sd);
+
+    const string K = rsa_decrypt(recvReq, convertStringToPrivateEVP_PKEY(Tprivkey));
+
+   
+
+    // ------------------ END RSAE ---------------------------
+
+    if (requestAndR[0] == "reg") // Registration.
     {
-        registerationProcedure(new_sd, howItEnded, status, nickNameSession);
+        registrationProcedure(new_sd, howItEnded, status, nickNameSession, K);
         if (howItEnded)
-        {  
+        {
             // If the registration went fine...
-            BBSsession(new_sd, nickNameSession); // The actual session.
+            BBSsession(new_sd, nickNameSession, K); // The actual session.
         }
-       
+
         close(new_sd);
     }
-    else if (requestType == LOGIN_REQUEST_TYPE) // Registration.
+    else if (requestAndR[0] == "log") // Registration.
     {
 
-        loginProcedure(new_sd, howItEnded, status, nickNameSession);
+        loginProcedure(new_sd, howItEnded, status, nickNameSession, K);
         if (howItEnded)
         {
             // If the login procedure went fine...
-            BBSsession(new_sd, nickNameSession); // The actual session.
+            BBSsession(new_sd, nickNameSession, K); // The actual session.
         }
         close(new_sd);
     }
 }
-
 
 int main()
 {
@@ -590,29 +633,12 @@ int main()
     std::vector<std::thread> threads;
     std::mutex clientSocketsMutex; // Mutex for synchronizing access to clientSockets vector.
 
-     
-    //---------------------------------------------------------------------------------------------------------
-    // load the private key of the server
-    //serverPrivateKey = loadServerPrivateKey();
-    //cout<<"server privare key: "<<serverPrivateKey<<endl;
-    //---------------------------------------------------------------------------------------------------------
-
-
-    //load each file in the respective vector
+    // load each file in the respective vector
     loadSnapshot();
 
-    /**/
-    for(int i = 0; i < messageBoard.size(); i++){
-        cout<<messageBoard[i].getId()<<" - "<<messageBoard[i].getAuthor()<<" - "<<messageBoard[i].getTitle()<<" - "<<messageBoard[i].getBody()<<endl;
-    }
-
-     for(int i = 0; i < userList.size(); i++){
-        cout<<userList[i].getNickname()<<" - "<<userList[i].getPasswordDigest()<<" - "<<userList[i].getEmail()<<" - "<<userList[i].getSalt()<<endl;
-    }
-    /**/
     thread snapshotter(periodicSnaphot);
     snapshotter.detach();
-    
+
     thread connectionListChecker(periodicCheckOfTheConnectionsList);
     connectionListChecker.detach();
 
@@ -642,7 +668,6 @@ int main()
         return 1;
     }
 
-    
     std::cout << "Server is listening on port 8080..." << std::endl;
 
     while (true)

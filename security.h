@@ -84,7 +84,12 @@ std::string computeHash(string input, string salt = "") {
     return ss.str();
 }
 
-std::string calculateHMAC(const std::string &key, const std::string &message, const EVP_MD *evp_md)
+std::string calculateHMAC(string key, string message){
+    const EVP_MD *evp_md = EVP_sha256();
+    return calculateHMAC(key, message , evp_md);
+}
+
+std::string calculateHMAC(string key, string message, const EVP_MD *evp_md)
 {
     EVP_PKEY *pkey = nullptr;
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
@@ -158,6 +163,8 @@ std::string calculateHMAC(const std::string &key, const std::string &message, co
     return hmac;
 }
 
+
+
 bool checkSaltedPasswordDigest(string inputPassword, string passwordDigest,  string salt = "")
 {
     if (computeHash(inputPassword, salt) == passwordDigest)
@@ -170,7 +177,6 @@ bool checkSaltedPasswordDigest(string inputPassword, string passwordDigest,  str
     }
     return false;
 }
-
 
 std::vector<unsigned char> stringToUnsignedCharVector(const std::string &str)
 {
@@ -342,7 +348,7 @@ std::vector<unsigned char> convertEVP_PKEYToVector(const EVP_PKEY *pkey)
 }
 
 // Funzione per convertire una stringa contenente una chiave privata in EVP_PKEY*
-EVP_PKEY *convertToEVP_PKEY(const std::string &privateKeyStr)
+EVP_PKEY *convertStringToPrivateEVP_PKEY(const std::string &privateKeyStr)
 {
     BIO *bio = BIO_new_mem_buf(privateKeyStr.data(), privateKeyStr.size());
     if (!bio)
@@ -522,48 +528,7 @@ std::string rsa_encrypt(const std::string &plainText, EVP_PKEY *pkey)
 
     return cipherText;
 }
-/*
-std::string rsa_decrypt(const std::string &cipherText, EVP_PKEY *pkey)
-{
 
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
-    EVP_PKEY_free(pkey);
-    if (ctx == nullptr)
-    {
-        throw std::runtime_error("Errore creazione contesto EVP_PKEY_CTX per decifratura");
-    }
-
-    if (EVP_PKEY_decrypt_init(ctx) <= 0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore inizializzazione operazione di decifratura");
-    }
-
-    if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) <= 0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore impostazione padding RSA");
-    }
-
-    size_t outlen;
-    if (EVP_PKEY_decrypt(ctx, nullptr, &outlen, (const unsigned char *)cipherText.c_str(), cipherText.length()) <= 0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore determinazione dimensione buffer per decifratura");
-    }
-
-    std::string plainText(outlen, '\0');
-    if (EVP_PKEY_decrypt(ctx, (unsigned char *)plainText.data(), &outlen, (const unsigned char *)cipherText.c_str(), cipherText.length()) <= 0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore decifratura dati");
-    }
-
-    EVP_PKEY_CTX_free(ctx);
-
-    return plainText;
-}
-*/
 std::string rsa_decrypt(const std::string &cipherText, EVP_PKEY *pkey)
 {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
@@ -738,6 +703,16 @@ std::string generateRandomSalt(size_t length = 64)
     }
 
     return oss.str();
+}
+
+std::string generateRandomKey(size_t length = 64)
+{
+    std::vector<unsigned char> aesKey(length);
+    if (!RAND_bytes(aesKey.data(), aesKey.size()))
+    {
+        throw std::runtime_error("Error in the generation of the AES key");
+    }
+    return vectorUnsignedCharToString(aesKey);
 }
 
 void generateRSAKeyPair(std::string &publicKey, std::string &privateKey, int bits = 2048)

@@ -165,16 +165,16 @@ public:
         }
     }
 
-    void computeDigitalFirm(int R){
+    void computeDigitalFirm(int R , EVP_PKEY* privKey){
         const string conc = to_string(R) + this->getPublicKey();
-        vector<unsigned char> firm = createDigitalSignature(conc , loadRSAKey(false));
+        vector<unsigned char> firm = createDigitalSignature(conc , privKey);
         this->DigitalFirm = vectorUnsignedCharToString(firm);
         
     }
 
-    void computeDigitalFirm(uint64_t R){
+    void computeDigitalFirm(uint64_t R, EVP_PKEY* privKey){
         const string conc = to_string(R) + this->getPublicKey();
-        this->setDigitalFirm(rsa_decrypt(conc , loadRSAKey(false)));
+        this->setDigitalFirm(rsa_decrypt(conc , privKey));
     }
 
     bool verifyDigitalFirm(int R){

@@ -16,10 +16,8 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include <string.h>
-#include <iostream>
-
 #include "messageBBS.h"
+#include "security.h"
 
 #ifndef COMMUNICATIONLIBRARY_H
 #define COMMUNICATIONLIBRARY_H
@@ -42,6 +40,14 @@ bool sendString(int socketDescriptor, string message) {
     return true; // L'invio ha avuto successo.
 }
 
+
+// Funzione per inviare una stringa tramite un socket
+bool sendString(int socketDescriptor, string message, string K) {
+    string cipher = encrypt_AES(message , K);
+    return sendString(socketDescriptor , cipher);
+}
+
+
 // Funzione per ricevere una stringa tramite un socket
 std::string receiveString(int socketDescriptor) {
     // Ricevo la lunghezza della stringa
@@ -63,6 +69,12 @@ std::string receiveString(int socketDescriptor) {
     // Converto il buffer in una stringa
     string message(buffer.begin(), buffer.end());
     return message;
+}
+
+
+// Funzione per ricevere una stringa tramite un socket
+std::string receiveString(int socketDescriptor, string K) {
+    return decrypt_AES(vectorUnsignedCharToString(receiveString(socketDescriptor)), K);
 }
 
 

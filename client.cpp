@@ -15,19 +15,29 @@
 #include "messageStructures/contentMessage.h"
 #include "messageStructures/RSAEMessage.h"
 
-
 using namespace std;
 
+void Client_RSAE(int sd, uint64_t R, string K)
+{
+    RSAEMessage messageRSAE;
 
-//load the RSA server public key from the file
-EVP_PKEY* loadServerPublicKey() {
-    return loadRSAKey(PUBLIC_KEY_PATH, true);
+    string recvReq = receiveString(sd);
+
+    messageRSAE.deconcatenateAndAssign(recvReq);
+
+    if (messageRSAE.verifyDigitalFirm(R))
+    {
+        // Digital signature is ok
+        sendString(sd, rsa_encrypt(K, convertStringToPublicEVP_PKEY(messageRSAE.getPublicKey()))); // Send the crypted key.
+    }
+    {
+        // Not ok, abort connection
+    }
 }
 
 int main()
 {
-    
-   
+
     // Variables declaration.
     struct sockaddr_in server_addr; // Socket of the server.
     int sd, ret;
@@ -50,23 +60,6 @@ int main()
         printf("Errore nella Connessione\n");
         exit(1);
     }
-     //---------------------------------------------------------------------------------------------------------
-    // load the public key of the server
-    EVP_PKEY *serverPublicKey = loadServerPublicKey();
-    //cout<<"server public key"<<serverPublicKey<<endl;
-    // generates a random AES key of 32 bytes
-    std::vector<unsigned char> aesKey(32);
-    if (!RAND_bytes(aesKey.data(), aesKey.size())) {
-        throw std::runtime_error("Error in the generation of the AES key");
-    }
-   
-    //cout<<"aes key client "<<aesKey<<endl;
-    // encrypt AES key with the RSA public key of the server
-    std::string encryptedAesKey = rsa_encrypt(std::string(aesKey.begin(), aesKey.end()), serverPublicKey);
-    //cout<<"encrypted aes key"<<toHex(encryptedAesKey)<<endl;
-    // send the encrypted AES key to the server
-    sendString(sd, encryptedAesKey);
-    //---------------------------------------------------------------------------------------------------------
 
     cout << "************ BBS *************" << endl;
 
@@ -78,152 +71,138 @@ int main()
     bool valid = false;
     string status = "";
 
-    do{
+    do
+    {
         cout << "Insert 'reg' for register or insert 'log' for login" << endl;
-        //we use the getline to get also the white spaces
+        // we use the getline to get also the white spaces
         getline(cin, requestString);
-    }while (requestString != "reg" && requestString != "log");
+    } while (requestString != "reg" && requestString != "log");
 
     SimpleMessage helloMsg;
     const uint64_t R = generate_secure_random_64_unsigned_int();
+    const string K = generateRandomKey(64);
 
-    if (requestString == "reg"){
+    if (requestString == "reg")
+    {
 
-        string req = "reg-"+to_string(R);
+        string req = "reg-" + to_string(R);
         helloMsg.setContent(req);
         string reqLength;
-        helloMsg.concatenateFields(reqLength)
+        helloMsg.concatenateFields(reqLength);
+        // Registration test
+        sendString(sd, reqLength); // I want to registrate, so i send 0.
+        Client_RSAE(sd, R, K);
+        // RSAE ended ----------------------
+
+        cout << "Insert email" << endl;
+        cin >> p_mail;
+        cout << "Insert nickname" << endl;
+        cin >> p_nick;
+        cout << "Insert password" << endl;
+        cin >> p_pwd;
+
+        const string IV = generateRandomKey(16);
+
+        userBBS ut;
+        ut.setNickname(p_nick);
+        ut.setSalt(generateRandomSalt(4));
+        ut.setEmail(p_mail);
+        ut.setPasswordDigest(computeHash(p_pwd , ut.getSalt()));
+
+        string recvString;
+        ut.concatenateFields(recvString);
+        
+        ContentMessage contentMsg;
+        contentMsg.setIV(IV);
+        contentMsg.setC(encrypt_AES(recvString , K));
+        contentMsg.setHMAC(calculateHMAC(contentMsg.getIV(),contentMsg.getC()));
+        contentMsg.concatenateFields(reqLength);
+
+        sendString(sd , reqLength , K); // Sending credentials.
+
+        // DA FARE DO WHILE
+
+        // --------------- CHALLENGE --------------------------------------------
+        reqLength = receiveString(sd , K);
+
+        string sendChallenge;
+        cout << "Received challenge: " << reqLength << endl;
+        cout << "Send the same value to the server" << endl;
+        cin >> sendChallenge;
+        sendString(sd , sendChallenge , K);
+      
+        
+         // --------------- FINE CHALLENGE --------------------------------------------
+    }
+    else if (requestString == "log")
+    {
+
+        string req = "log-" + to_string(R);
+        helloMsg.setContent(req);
+        string reqLength;
+        helloMsg.concatenateFields(reqLength);
         // Registration test
         sendString(sd, reqLength); // I want to registrate, so i send 0.
 
+        Client_RSAE(sd, R, K);
 
-        do{
-            cout << "Insert email" << endl;
-            cin >> p_mail;
-            //---------------------------------------------------------------------------------------------------------
-            // encrypt the message with AES
-            std::vector<unsigned char> encryptedMail = encrypt_AES(p_mail, std::string(aesKey.begin(), aesKey.end()));
-             
-            // compute the HMAC of the encrypted message
-            const EVP_MD *evp_md = EVP_sha256();
-            std::string hmac = calculateHMAC(std::string(aesKey.begin(), aesKey.end()), std::string(encryptedMail.begin(), encryptedMail.end()), evp_md);
-            
-            
-            sendString(sd, std::string(encryptedMail.begin(), encryptedMail.end())); // Send the email
-            sendString(sd, hmac);          //send hmac to the server
-            //---------------------------------------------------------------------------------------------------------
-
-           status = receiveString(sd);
-           if(status !="ok"){
-
-                cout<<status<<endl;
-
-           }else{
-                valid = true;
-           }
-
-        }while(!valid);
-
-        valid = false;
-
-        do{
+        do
+        {
             cout << "Insert nickname" << endl;
             cin >> p_nick;
             sendString(sd, p_nick); // Send the nickname.
 
-           status = receiveString(sd);
-           if(status !="ok"){
+            status = receiveString(sd);
+            if (status != "ok")
+            {
 
-                cout<<status<<endl;
-
-           }else{
+                cout << status << endl;
+            }
+            else
+            {
                 valid = true;
-           }
+            }
 
-        }while(!valid);
-       
-       valid = false;
+        } while (!valid);
 
-        do{
+        valid = false;
+
+        do
+        {
             cout << "Insert password" << endl;
             cin >> p_pwd;
             sendString(sd, p_pwd); // Send the password.
 
-           status = receiveString(sd);
-           if(status !="ok"){
+            status = receiveString(sd);
+            if (status != "ok")
+            {
 
-                cout<<status<<endl;
-
-           }else{
+                cout << status << endl;
+            }
+            else
+            {
                 valid = true;
-           }
+            }
 
-        }while(!valid);
-        
-
-        // CHALLENGE
-        int recvChallenge = receiveIntegerNumber(sd);
-        int sendChallenge;
-        cout<<"Received challenge: "<<recvChallenge<<endl;
-        cout<<"Send the same value to the server"<<endl;
-        cin>>sendChallenge;
-        sendIntegerNumber(sd, sendChallenge);
-
-    }else if (requestString == "log"){
-        
-        string req = "log-"+to_string(R);
-        helloMsg.setContent(req);
-        string reqLength;
-        helloMsg.concatenateFields(reqLength)
-        // Registration test
-        sendString(sd, reqLength); // I want to registrate, so i send 0.
-
-        do{
-            cout<<"Insert nickname"<<endl;
-            cin>>p_nick;
-            sendString(sd, p_nick); // Send the nickname.
-
-           status = receiveString(sd);
-           if(status !="ok"){
-
-                cout<<status<<endl;
-
-           }else{
-                valid = true;
-           }
-
-        }while(!valid);
-
-        valid = false;
-
-        do{
-            cout<<"Insert password"<<endl;
-            cin>>p_pwd;
-            sendString(sd, p_pwd); // Send the password.
-
-           status = receiveString(sd);
-           if(status !="ok"){
-
-                cout<<status<<endl;
-
-           }else{
-                valid = true;
-           }
-
-        }while(!valid);
+        } while (!valid);
     }
 
     res = receiveIntegerNumber(sd); // Receive the result of the login/registration process.
 
-    if (res == 1){
+    if (res == 1)
+    {
 
-        if ((requestString == "log") || (requestString == "Log") || (requestString == "LOG")){
-            
-            cout << "\nWelcome back!\n"<< endl; // The user already register, so he came back.
+        if ((requestString == "log") || (requestString == "Log") || (requestString == "LOG"))
+        {
 
-        }else{
-            
-            cout << "\nWelcome!\n"<< endl; // The user have just register himself.
+            cout << "\nWelcome back!\n"
+                 << endl; // The user already register, so he came back.
+        }
+        else
+        {
+
+            cout << "\nWelcome!\n"
+                 << endl; // The user have just register himself.
         }
 
         vector<string> requestParts;
@@ -231,10 +210,11 @@ int main()
         while (true)
         {
             cout << "----------------------------------\nAvailable commands:\n1)list-n\n2)get-n\n3)add\n4)logout\n\nDigit the wanted operation...\n----------------------------------" << endl;
-            do{
+            do
+            {
                 // Even white spaces are inserted in the string
                 getline(cin, requestString); // Receive the type of operation wanted
-            }while(requestString.length() <= 2);
+            } while (requestString.length() <= 2);
 
             requestParts = divideString(requestString, '-'); // Divide the string on the '-'
 
@@ -304,17 +284,17 @@ int main()
                 }
                 sendIntegerNumber(sd, GET_REQUEST_TYPE); // We want to download a post.
                 sendIntegerNumber(sd, targetId);         // Send the id of the wanted post.
-                /*
-                string messageGetted = receiveString(sd);
-                if(messageGetted == "err - err - err\n\n"){
-                    cout << "The message doesn't exists"<< endl;
-                }else{
-                    cout << "\n"
-                        << messageGetted << endl;
-                }
-                */
-               cout << "\n"
-                        << receiveString(sd) << endl;
+                                                         /*
+                                                         string messageGetted = receiveString(sd);
+                                                         if(messageGetted == "err - err - err\n\n"){
+                                                             cout << "The message doesn't exists"<< endl;
+                                                         }else{
+                                                             cout << "\n"
+                                                                 << messageGetted << endl;
+                                                         }
+                                                         */
+                cout << "\n"
+                     << receiveString(sd) << endl;
             }
             else if ((requestParts[0] == "add") || (requestParts[0] == "Add") || (requestParts[0] == "ADD"))
             {
@@ -358,12 +338,17 @@ int main()
                 cout << "ERROR - Command not valid" << endl;
             }
         }
-    }else if(res == -1){
-          cout << "\nThe challenge sent is wrong!\n"<< endl;
     }
-    else{
-       
-        cout << "\nSomething went wrong!\n"<< endl;
+    else if (res == -1)
+    {
+        cout << "\nThe challenge sent is wrong!\n"
+             << endl;
+    }
+    else
+    {
+
+        cout << "\nSomething went wrong!\n"
+             << endl;
     }
 
     return 0;
