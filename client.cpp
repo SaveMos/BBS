@@ -11,6 +11,9 @@
 #include "security.h"
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include "messageStructures/simpleMessage.h"
+#include "messageStructures/contentMessage.h"
+#include "messageStructures/RSAEMessage.h"
 
 
 using namespace std;
@@ -79,12 +82,20 @@ int main()
         cout << "Insert 'reg' for register or insert 'log' for login" << endl;
         //we use the getline to get also the white spaces
         getline(cin, requestString);
-    }while (requestString != "reg" && requestString != "log"); 
+    }while (requestString != "reg" && requestString != "log");
+
+    SimpleMessage helloMsg;
+    const uint64_t R = generate_secure_random_64_unsigned_int();
 
     if (requestString == "reg"){
 
+        string req = "reg-"+to_string(R);
+        helloMsg.setContent(req);
+        string reqLength;
+        helloMsg.concatenateFields(reqLength)
         // Registration test
-        sendIntegerNumber(sd, REGISTRATION_REQUEST_TYPE); // I want to registrate, so i send 0.
+        sendString(sd, reqLength); // I want to registrate, so i send 0.
+
 
         do{
             cout << "Insert email" << endl;
@@ -159,8 +170,13 @@ int main()
         sendIntegerNumber(sd, sendChallenge);
 
     }else if (requestString == "log"){
-        // Login Test
-        sendIntegerNumber(sd, LOGIN_REQUEST_TYPE); // I want to login, so i send 1.
+        
+        string req = "log-"+to_string(R);
+        helloMsg.setContent(req);
+        string reqLength;
+        helloMsg.concatenateFields(reqLength)
+        // Registration test
+        sendString(sd, reqLength); // I want to registrate, so i send 0.
 
         do{
             cout<<"Insert nickname"<<endl;

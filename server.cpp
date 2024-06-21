@@ -8,7 +8,9 @@
 #include <vector>
 #include <thread>
 #include <iostream>
-
+#include "messageStructures/simpleMessage.h"
+#include "messageStructures/contentMessage.h"
+#include "messageStructures/RSAEMessage.h"
 
 #define MAXIMUM_NUMBER_OF_THREAD 100
 #define MAXIMUM_REQUEST_NUMBER 1000
@@ -388,7 +390,7 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
 
             if (recvChallenge == sendChallenge){
                 // Challenge win!
-                userBBS userRecv(nickNameRecv, "", emailRecv,  generateRandomSalt(4));
+                userBBS userRecv(nickNameRecv, generateRandomSalt(4),  "", emailRecv);
                 userRecv.setPasswordDigest(pwdRecv);
 
                 mutexUserList.lock();
@@ -550,6 +552,8 @@ void threadServerCode(int new_sd)
     aesKey = rsa_decrypt(encryptedAesKey, serverPrivateKey);
     //-----------------------------------------------------------------------------------------------------------
     //cout<<"Thread server code: dopo aver decifrato rsa"<<endl;
+    string recvReq = receiveString(new_sd);
+    simpleMessage
     const int requestType = receiveIntegerNumber(new_sd); // Get the request type from the client.
     
     if (requestType == REGISTRATION_REQUEST_TYPE) // Registration.
@@ -597,15 +601,15 @@ int main()
     //load each file in the respective vector
     loadSnapshot();
 
-    /*
+    /**/
     for(int i = 0; i < messageBoard.size(); i++){
         cout<<messageBoard[i].getId()<<" - "<<messageBoard[i].getAuthor()<<" - "<<messageBoard[i].getTitle()<<" - "<<messageBoard[i].getBody()<<endl;
     }
 
      for(int i = 0; i < userList.size(); i++){
-        cout<<userList[i].getNickname()<<" - "<<userList[i].getPasswordDigest()<<" - "<<userList[i].getEmail()<<endl;
+        cout<<userList[i].getNickname()<<" - "<<userList[i].getPasswordDigest()<<" - "<<userList[i].getEmail()<<" - "<<userList[i].getSalt()<<endl;
     }
-    */
+    /**/
     thread snapshotter(periodicSnaphot);
     snapshotter.detach();
     
