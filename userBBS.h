@@ -1,5 +1,6 @@
 #include <string>
 #include <sstream>
+
 using namespace std;
 
 #ifndef USERBBS_H
@@ -129,53 +130,6 @@ public:
         result.push_back(input.substr(iss.tellg(), lengthPasswordDigest));
     }
 
-    bool checkPassword(string &inputPassword)
-    {
-        const string tempInputPassword = inputPassword + this->salt;
-        if (this->computeHash(tempInputPassword) == this->passwordDigest)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-    bool checkPassword(const string &inputPassword)
-    {
-        const string tempInputPassword = inputPassword + this->salt;
-        if (this->computeHash(tempInputPassword) == this->passwordDigest)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-    string computeHash(string &inputString)
-    {
-        const string tempInputPassword = inputString + this->salt;
-        return this->computeHash(tempInputPassword);
-    }
-
-    string computeHash(const string &inputString)
-    {
-        const string tempInputPassword = inputString + this->salt;
-        return this->computeHash(tempInputPassword);
-    }
-
-    void computePasswordHash(string &inputString)
-    {
-        this->passwordDigest = this->computeHash(inputString);
-    }
-
-    void computePasswordHash(const string &inputString)
-    {
-        this->passwordDigest = this->computeHash(inputString);
-    }
 };
 
 #endif
