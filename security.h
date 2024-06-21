@@ -527,5 +527,53 @@ std::string generateRandomSalt(size_t length) {
 }
 
 
+void generateRSAKeyPair(std::string &publicKey, std::string &privateKey, int bits = 2048) {
+    // Create a new RSA key object
+    RSA *rsa = RSA_new();
+    BIGNUM *bignum = BN_new();
+    BN_set_word(bignum, RSA_F4); // RSA_F4 is a commonly used public exponent
+
+    // Generate the RSA key pair
+    if (RSA_generate_key_ex(rsa, bits, bignum, nullptr) != 1) {
+        BN_free(bignum);
+        RSA_free(rsa);
+        throw std::runtime_error("Error generating RSA key pair");
+    }
+
+    // Extract the private key
+    BIO *privateBIO = BIO_new(BIO_s_mem());
+    if (PEM_write_bio_RSAPrivateKey(privateBIO, rsa, nullptr, nullptr, 0, nullptr, nullptr) != 1) {
+        BN_free(bignum);
+        RSA_free(rsa);
+        BIO_free_all(privateBIO);
+        throw std::runtime_error("Error writing private key to BIO");
+    }
+
+    // Extract the public key
+    BIO *publicBIO = BIO_new(BIO_s_mem());
+    if (PEM_write_bio_RSAPublicKey(publicBIO, rsa) != 1) {
+        BN_free(bignum);
+        RSA_free(rsa);
+        BIO_free_all(privateBIO);
+        BIO_free_all(publicBIO);
+        throw std::runtime_error("Error writing public key to BIO");
+    }
+
+    // Convert the BIOs to strings
+    char *privateKeyData;
+    long privateKeyLen = BIO_get_mem_data(privateBIO, &privateKeyData);
+    privateKey.assign(privateKeyData, privateKeyLen);
+
+    char *publicKeyData;
+    long publicKeyLen = BIO_get_mem_data(publicBIO, &publicKeyData);
+    publicKey.assign(publicKeyData, publicKeyLen);
+
+    // Free resources
+    BN_free(bignum);
+    RSA_free(rsa);
+    BIO_free_all(privateBIO);
+    BIO_free_all(publicBIO);
+}
+
 
 #endif

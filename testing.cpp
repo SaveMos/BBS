@@ -44,4 +44,31 @@ int main(int argc, char *argv[])
    cout<< generateRandomSalt(4)<<endl;
    cout<< generateRandomSalt(4)<<endl;
    cout<< generateRandomSalt(4)<<endl;
+
+   std::string publicKey, privateKey;
+
+    generateRSAKeyPair(publicKey, privateKey);
+
+    std::cout << "Public Key: " << std::endl << publicKey << std::endl;
+    std::cout << "Private Key: " << std::endl << privateKey << std::endl;
+
+    generateRSAKeyPair(publicKey, privateKey);
+
+    std::cout << "Public Key: " << std::endl << publicKey << std::endl;
+    std::cout << "Private Key: " << std::endl << privateKey << std::endl;
+
+    generateRSAKeyPair(publicKey, privateKey);
+
+    std::cout << "Public Key: " << std::endl << publicKey << std::endl;
+    std::cout << "Private Key: " << std::endl << privateKey << std::endl;
+
+    generateRSAKeyPair(publicKey, privateKey);
+
+    std::cout << "Public Key: " << std::endl << publicKey << std::endl;
+    std::cout << "Private Key: " << std::endl << privateKey << std::endl;
+
+    generateRSAKeyPair(publicKey, privateKey);
+
+    std::cout << "Public Key: " << std::endl << publicKey << std::endl;
+    std::cout << "Private Key: " << std::endl << privateKey << std::endl;
 }
