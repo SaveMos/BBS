@@ -220,6 +220,7 @@ bool checkUserEmail(string inputEmail)
 
 void refreshConnectionInformation(string inputNickname, int sd, string type)
 {
+    mutexConnections.lock();
     const size_t size = connections.size();
     for (size_t i = 0; i < size; i++)
     {
@@ -237,6 +238,7 @@ void refreshConnectionInformation(string inputNickname, int sd, string type)
             }
         }
     }
+    mutexConnections.unlock();
 }
 
 void loadSnapshot()
@@ -408,7 +410,10 @@ void registerationProcedure(int socketDescriptor, bool &result, string &status, 
             }else{
                 cout<<"challenge not valid, client disconnected"<<endl;
                 sendIntegerNumber(socketDescriptor, -1);
-                close(socketDescriptor);
+                //close(socketDescriptor);
+                mutexConnections.lock();
+                refreshConnectionInformation(nickNameRecv, socketDescriptor, "logout");
+                mutexConnections.unlock();
                 return;
             }
         }
