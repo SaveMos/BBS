@@ -267,6 +267,35 @@ EVP_PKEY *convertToEVP_PKEY(const std::vector<unsigned char> &privateKeyVec)
     return pkey;
 }
 
+// Funzione per convertire un EVP_PKEY* in std::vector<unsigned char>
+std::vector<unsigned char> convertEVP_PKEYToVector(const EVP_PKEY *pkey) {
+    BIO *bio = BIO_new(BIO_s_mem());
+    if (!bio) {
+        throw std::runtime_error("Errore nella creazione del BIO");
+    }
+
+    // Scrive la chiave privata nel BIO
+    if (!PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr, nullptr)) {
+        BIO_free(bio);
+        throw std::runtime_error("Errore nella scrittura della chiave privata nel BIO");
+    }
+
+    // Recupera i dati dal BIO
+    char *bioData;
+    long bioLen = BIO_get_mem_data(bio, &bioData);
+    if (bioLen <= 0) {
+        BIO_free(bio);
+        throw std::runtime_error("Errore nel recupero dei dati dal BIO");
+    }
+
+    // Converte i dati in un std::vector<unsigned char>
+    std::vector<unsigned char> keyVec(bioData, bioData + bioLen);
+
+    BIO_free(bio);
+    return keyVec;
+}
+
+
 // Funzione per convertire una stringa contenente una chiave privata in EVP_PKEY*
 EVP_PKEY *convertToEVP_PKEY(const std::string &privateKeyStr)
 {
@@ -287,6 +316,30 @@ EVP_PKEY *convertToEVP_PKEY(const std::string &privateKeyStr)
     BIO_free(bio);
     return pkey;
 }
+
+
+// Funzione per convertire un EVP_PKEY* in una stringa contenente una chiave privata
+std::string convertEVP_PKEYToString(const EVP_PKEY *pkey) {
+    BIO *bio = BIO_new(BIO_s_mem());
+    if (!bio) {
+        throw std::runtime_error("Errore nella creazione del BIO");
+    }
+
+    // Scrive la chiave privata nel BIO
+    if (!PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr, nullptr)) {
+        BIO_free(bio);
+        throw std::runtime_error("Errore nella scrittura della chiave privata nel BIO");
+    }
+
+    // Converte il BIO in una stringa
+    char *bioData;
+    long bioLen = BIO_get_mem_data(bio, &bioData);
+    std::string privateKeyStr(bioData, bioLen);
+
+    BIO_free(bio);
+    return privateKeyStr;
+}
+
 
 // Funzione per caricare una chiave RSA da file
 EVP_PKEY *loadRSAKey(const char *path, const bool public_key)
