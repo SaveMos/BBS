@@ -216,10 +216,10 @@ void IncrementUserCounter(uint64_t index)
     userList[index].incrCounter(1);
     mutexUserList.unlock();
 }
-bool checkUserListIndex(string inputNickname, uint64_t index)
+uint64_t checkUserListIndex(string inputNickname)
 {
-    bool res = false;
-    index = 0;
+   
+    uint64_t index = 0;
     mutexUserList.lock();
     const size_t size = userList.size();
     for (size_t i = 0; i < size; i++)
@@ -227,12 +227,11 @@ bool checkUserListIndex(string inputNickname, uint64_t index)
         if (userList[i].getNickname() == inputNickname)
         {
             index = i;
-            res = true;
             break;
         }
     }
     mutexUserList.unlock();
-    return res;
+    return  index;
 }
 
 bool checkUserEmail(string inputEmail)
@@ -506,7 +505,7 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
             status = "Login ok!";
             sendIntegerNumber(socketDescriptor, 1); // INTEGER MESSAGE - Send the result of the login/registration process.
 
-            nickName = nickNameRecv;
+            nickName = ut.getNickname();
         }
         else
         {
@@ -533,7 +532,7 @@ void BBSsession(int socketDescriptor, string nickNameRecv, string K)
         req = receiveString(socketDescriptor, K); // Get the request type from the client.
 
         msg.deconcatenateAndAssign(req);
-        content = ContentMessageGetContent(msg);
+        content = ContentMessageGetContent(msg, K);
         requests = divideString(content, '-');
 
         if (requests[0] == "logout")

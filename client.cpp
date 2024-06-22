@@ -204,7 +204,7 @@ int main()
                 // Valid HMAC.
                 recvString = ContentMessageGetContent(msg, K); // Extract the content.
 
-                vector<string> requestParts = divideString(receiveString(sd), "-");
+                vector<string> requestParts = divideString(receiveString(sd), '-');
 
                 if (requestParts[0] != "ok")
                 {
@@ -254,7 +254,7 @@ int main()
                 getline(cin, requestString); // Receive the type of operation wanted, even white spaces are inserted in the string.
             } while (requestString.length() <= 2);
 
-            requestParts = divideString(requestString, "-"); // Divide the string on the "-".
+            requestParts = divideString(requestString, '-'); // Divide the string on the "-".
 
             if ((requestParts[0] == "logout") || (requestParts[0] == "Logout") || (requestParts[0] == "LOGOUT"))
             {

@@ -164,7 +164,7 @@ std::string calculateHMAC(string key, string message){
 }
 
 bool verifyHMAC(string key, string message , string HMACtoVerify){
-    return (calculateHMAC(key , message) == HMACtoVerify)
+    return (calculateHMAC(key , message) == HMACtoVerify);
 }
 
 bool checkSaltedPasswordDigest(string inputPassword, string passwordDigest,  string salt = "")
@@ -248,10 +248,6 @@ std::vector<unsigned char> encrypt_AES(const std::string &plaintext, const std::
 }
 
 
-std::string decrypt_AES(const string &ciphertext, const std::string &key){
-    return decrypt_AES(stringToVectorUnsignedChar(ciphertext) , key);
-}
-
 // Funzione per decifrare una stringa
 std::string decrypt_AES(const std::vector<unsigned char> &ciphertext, const std::string &key)
 {
@@ -296,6 +292,10 @@ std::string decrypt_AES(const std::vector<unsigned char> &ciphertext, const std:
 
     EVP_CIPHER_CTX_free(ctx);
     return std::string(paddedPlaintext.begin(), paddedPlaintext.end());
+}
+
+std::string decrypt_AES(const string &ciphertext, const std::string &key){
+    return decrypt_AES(stringToVectorUnsignedChar(ciphertext) , key);
 }
 
 // --------------- RSA Part -----------------------------------------------------------------------------------------------
