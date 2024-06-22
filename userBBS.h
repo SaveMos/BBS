@@ -13,14 +13,14 @@ private:
     string email;
     string salt;
     string passwordDigest;
-    uint64_t counter;
+    string counter;
 
 public:
     // Costruttore di default
-    userBBS() : counter(0) {}
+    userBBS() {}
 
     // Costruttore che inizializza nickname, salt, passwordDigest, email e counter
-    userBBS(string newNickname, string salt, string newPasswordDigest, string newEmail, uint64_t newCounter = 0)
+    userBBS(string newNickname, string salt, string newPasswordDigest, string newEmail, string newCounter = "0")
     {
         this->nickname = newNickname;
         this->email = newEmail;
@@ -51,9 +51,14 @@ public:
         this->salt = salt;
     }
 
-    void setCounter(uint64_t c)
+    void setCounter(string c)
     {
         this->counter = c;
+    }
+
+    void setCounter(uint64_t c)
+    {
+        this->counter = to_string(c);
     }
 
     // Metodo get per ottenere il valore di nickname
@@ -66,6 +71,7 @@ public:
     {
         return this->email;
     }
+
     // Metodo get per ottenere il valore di passwordDigest
     string getPasswordDigest()
     {
@@ -77,14 +83,20 @@ public:
         return this->salt;
     }
 
-    uint64_t getCounter()
+    string getCounter()
     {
         return this->counter;
     }
 
+    uint64_t getUintCounter()
+    {
+        return stoull(this->counter);
+    }
+
     void incrCounter(uint64_t howMuch = 1)
     {
-        this->counter += howMuch;
+        uint64_t count = stoull(this->counter) + howMuch;
+        this->counter = to_string(count);
     }
 
     void concatenateFields(string &str)
@@ -95,11 +107,12 @@ public:
             << this->email.length() << delimiter
             << this->salt.length() << delimiter
             << this->passwordDigest.length() << delimiter
+            << this->counter.length() << delimiter
             << this->nickname
             << this->email
             << this->salt
             << this->passwordDigest
-            << delimiter << this->counter;
+            << this->counter;
         str = oss.str();
     }
 
@@ -118,7 +131,7 @@ public:
             this->email = stringVector[1];
             this->salt = stringVector[2];
             this->passwordDigest = stringVector[3];
-            this->counter = stoull(stringVector[4]);
+            this->counter = stringVector[4];
         }
     }
 
@@ -129,7 +142,7 @@ public:
         string part;
 
         // Read the lengths
-        int lengthNickname, lengthEmail, lengthSalt, lengthPasswordDigest;
+        int lengthNickname, lengthEmail, lengthSalt, lengthPasswordDigest, lengthCounter;
         getline(iss, part, '-');
         lengthNickname = stoi(part);
         getline(iss, part, '-');
@@ -138,20 +151,20 @@ public:
         lengthSalt = stoi(part);
         getline(iss, part, '-');
         lengthPasswordDigest = stoi(part);
+        getline(iss, part, '-');
+        lengthCounter = stoi(part);
 
         // Read the actual fields based on the lengths
-        result.push_back(input.substr(iss.tellg(), lengthNickname));
-        iss.seekg(iss.tellg() + streampos(lengthNickname));
-        result.push_back(input.substr(iss.tellg(), lengthEmail));
-        iss.seekg(iss.tellg() + streampos(lengthEmail));
-        result.push_back(input.substr(iss.tellg(), lengthSalt));
-        iss.seekg(iss.tellg() + streampos(lengthSalt));
-        result.push_back(input.substr(iss.tellg(), lengthPasswordDigest));
-        iss.seekg(iss.tellg() + streampos(lengthPasswordDigest));
-
-        // Read the counter
-        getline(iss, part, '-');
-        result.push_back(part);
+        int currentPos = iss.tellg();
+        result.push_back(input.substr(currentPos, lengthNickname));
+        currentPos += lengthNickname;
+        result.push_back(input.substr(currentPos, lengthEmail));
+        currentPos += lengthEmail;
+        result.push_back(input.substr(currentPos, lengthSalt));
+        currentPos += lengthSalt;
+        result.push_back(input.substr(currentPos, lengthPasswordDigest));
+        currentPos += lengthPasswordDigest;
+        result.push_back(input.substr(currentPos, lengthCounter));
     }
 };
 

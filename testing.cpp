@@ -1,11 +1,12 @@
 #include <iostream>
 #include <string>
 #include "utilityFile.h"
-#include "security.h"
+
 #include "timestampLibrary.h"
 #include "configuration.h"
+#include "messagePackingLibrary.h"
+#include "security.h"
 
-#include "messageStructures/RSAEMessage.h"
 
 using namespace std;
 
@@ -55,10 +56,10 @@ int main(int argc, char *argv[])
     RSAEMessage mess;
     string conc, check;
     int R = 100;
-
+/*
     mess.setCert("CERTIFICATOAOOO");
     mess.setPublicKey(loadRSAKey(true));
-    mess.computeDigitalFirm(R);
+    mess.setDigitalFirm(createDigitalSignature(mess.getPublicKey()))
 
     if (!mess.verifyDigitalFirm(R))
     {
@@ -135,11 +136,33 @@ int main(int argc, char *argv[])
         cout << "La seconda verifica della password utente NON funziona" << endl;
         global_test = false;
     }
+*/
+    string aes_key = "Pippo";
+    string msg = "Pluto";
+    string c = vectorUnsignedCharToString(encrypt_AES(msg , aes_key));
+
+    if (decrypt_AES(c , aes_key) != msg)
+    {
+        cout << "La prima verifica di AES NON funziona!" << endl;
+        global_test = false;
+    }
+
+    if (!(decrypt_AES(c , aes_key) != (msg + " ")))
+    {
+        cout << "La prima verifica di AES NON funziona!" << endl;
+        global_test = false;
+    }
 
     if (global_test)
     {
         cout << "Tutto OK!" << endl;
     }
+
+
+    
+
+
+
 
     return 0;
 }

@@ -205,7 +205,7 @@ uint64_t getUserCounter(uint64_t index)
 {
     uint64_t res;
     mutexUserList.lock();
-    res = userList[index].getCounter();
+    res = userList[index].getUintCounter();
     mutexUserList.unlock();
     return res;
 }
@@ -216,9 +216,10 @@ void IncrementUserCounter(uint64_t index)
     userList[index].incrCounter(1);
     mutexUserList.unlock();
 }
+
 uint64_t checkUserListIndex(string inputNickname)
 {
-   
+
     uint64_t index = 0;
     mutexUserList.lock();
     const size_t size = userList.size();
@@ -231,16 +232,16 @@ uint64_t checkUserListIndex(string inputNickname)
         }
     }
     mutexUserList.unlock();
-    return  index;
+    return index;
 }
 
 bool checkUserEmail(string inputEmail)
 {
     bool res = false;
     mutexUserList.lock();
-    const uint64_t size = userList.size();
+    const size_t size = userList.size();
 
-    for (uint64_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         if (userList[i].getEmail() == inputEmail)
         {
@@ -248,13 +249,13 @@ bool checkUserEmail(string inputEmail)
             break;
         }
     }
-
     mutexUserList.unlock();
     return res;
 }
 
-void refreshConnectionInformation(string inputNickname, int sd, string type)
+void refreshConnectionInformation(string inputNickname, int sd, string type = "generic")
 {
+    mutexConnections.lock();
     const size_t size = connections.size();
     for (size_t i = 0; i < size; i++)
     {
@@ -263,15 +264,19 @@ void refreshConnectionInformation(string inputNickname, int sd, string type)
             if (type == "login")
             {
                 connections[i].refreshLogin(sd);
-                break;
             }
             else if (type == "logout")
             {
                 connections[i].refreshLogout();
-                break;
             }
+            else if (type == "generic")
+            {
+                connections[i].refreshLastActionTimestamp();
+            }
+            break;
         }
     }
+    mutexConnections.unlock();
 }
 
 void loadSnapshot()
@@ -343,95 +348,113 @@ void registrationProcedure(int socketDescriptor, bool &result, string &status, s
             // CLose the connection
         }
 
-        req = ContentMessageGetContent(msg, K); // Extract the content.
-        ut.deconcatenateAndAssign(req);         // Extract the user info.
-        ut.setCounter(0);
-        status = "";
+        try
+        {
+            req = ContentMessageGetContent(msg, K); // Extract the content.
+            ut.deconcatenateAndAssign(req);         // Extract the user info.
+            ut.setCounter(0);
+        }
+        catch (const char *e)
+        {
+            cout << "not valid" << endl;
+            continue;
+        }
+
+        string statusLocal = "ERROR-";
 
         result = true;
 
         if (!checkEmailFormat(ut.getEmail()))
         {
             result = false;
-            status += "ERROR - Wrong email format" + '\n';
+            string as = "Wrong email format" + '\n';
+            statusLocal = statusLocal + as;
         }
 
         if (checkUserEmail(ut.getEmail()))
         {
             result = false;
-            status += "ERROR - This email already exists" + '\n';
+            string as = "This email already exists" + '\n';
+            statusLocal = statusLocal + as;
         }
 
         if (ut.getNickname().length() < 3)
         {
             result = false;
-            status += "ERROR - Nickname must be at least of 3 characters" + '\n';
+            string as = "Nickname must be at least of 3 characters" + '\n';
+            statusLocal = statusLocal + as;
         }
 
         if (ut.getPasswordDigest().length() < 5)
         {
             result = false;
-            status += "ERROR - Password must be at least of 5 characters" + '\n';
+            string as = "Password must be at least of 5 characters" + '\n';
+            statusLocal = statusLocal + as;
         }
 
         if (checkUserList(ut.getNickname())) // Check if the nickname have already been used.
         {
             result = false;
-            status += "ERROR - This nickname already exists" + '\n';
+            string as = "This nickname already exists" + '\n';
+            statusLocal = statusLocal + as;
         }
 
         if (result)
         {
             valid = true;
-            status = "ok";
+            statusLocal = "ok";
         }
 
-        sendString(socketDescriptor, status, K);
+        status = statusLocal;
+        sendString(socketDescriptor, packContentMessage(status, K), K);
 
     } while (!valid);
 
     // -------------------CHALLENGE -------------------------------
 
-    string sendReq = to_string(abs(generate_secure_random_int()));
-    req = packContentMessage(req, K);
-    sendString(socketDescriptor, req, K); // CONTENT MESSAGE -Send the challenge.
+    string sendReq = to_string(abs(generate_secure_random_int()));   // generate the challenge
+    sendString(socketDescriptor, packContentMessage(sendReq, K), K); // CONTENT MESSAGE -Send the challenge.
 
     string recvReq = receiveString(socketDescriptor, K); // CONTENT MESSAGE -Receive the challenge.
-
-    if (sendReq == recvReq)
+    ContentMessage msg;
+    if (verifyContentMessageHMAC(recvReq, msg))
     {
-        // Challenge win!
-        ut.setSalt(generateRandomSalt());
-        ut.setPasswordDigest(computeHash(ut.getPasswordDigest(), ut.getSalt()));
+        if (sendReq == ContentMessageGetContent(msg, K))
+        {
+            // Challenge win!
+            ut.setSalt(generateRandomSalt(8));
+            ut.setPasswordDigest(computeHash(ut.getPasswordDigest(), ut.getSalt()));
 
-        // We can insert the user in the list.
-        mutexUserList.lock();
-        userList.push_back(ut);
-        mutexUserList.unlock();
+            // We can insert the user in the list.
+            mutexUserList.lock();
+            userList.push_back(ut);
+            mutexUserList.unlock();
 
-        connectionInformation c(socketDescriptor, ut.getNickname(), getCurrentTimestamp(), getCurrentTimestamp(), true);
-        mutexConnections.lock();
-        connections.push_back(c);
-        mutexConnections.unlock();
+            connectionInformation c(socketDescriptor, ut.getNickname(), getCurrentTimestamp(), getCurrentTimestamp(), true);
+            mutexConnections.lock();
+            connections.push_back(c);
+            mutexConnections.unlock();
 
-        result = true;
-        status = "User registered!";
-        sendIntegerNumber(socketDescriptor, 1); // INTEGER MESSAGE - Send the result of the login/registration process.
-        nickName = ut.getNickname();            // Save the nickname for later.
-        return;
-    }
-    else
-    {
-        result = false;
-        sendIntegerNumber(socketDescriptor, -1); // INTEGER MESSAGE - Send the result of the login/registration process.
-        close(socketDescriptor);
-        return;
+            result = true;
+            status = "User registered!";
+            sendIntegerNumber(socketDescriptor, 1); // INTEGER MESSAGE - Send the result of the login/registration process.
+            nickName = ut.getNickname();            // Save the nickname for later.
+            return;
+        }
+        else
+        {
+            result = false;
+            sendIntegerNumber(socketDescriptor, -1); // INTEGER MESSAGE - Send the result of the login/registration process.
+            close(socketDescriptor);
+            return;
+        }
     }
 }
 
 void loginProcedure(int socketDescriptor, bool &result, string &status, string &nickName, string K)
 {
     string req;
+    string statusLocal;
     userBBS ut;
     ContentMessage msg;
     vector<string> recvStrings;
@@ -439,7 +462,7 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
     {
         recvStrings.clear();
         result = true;
-        status = "";
+        statusLocal = "ERROR-";
         // Receive the encrypted message and HMAC from the client
         req = receiveString(socketDescriptor, K); // CONTENT MESSAGE - Sending credentials.
 
@@ -448,7 +471,7 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
             // Not valid HMAC.
             close(socketDescriptor);
             result = false;
-            status = "No HMAC";
+            statusLocal = "No HMAC";
             return;
         }
 
@@ -459,26 +482,30 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
         if (recvStrings[0].length() < 3)
         {
             result = false;
-            status += "ERROR - Nickname must be at least of 3 characters" + '\n';
+            string as = "Nickname must be at least of 3 characters" + '\n';
+            statusLocal = statusLocal + as;
         }
 
         if (recvStrings[1].length() < 5)
         {
             result = false;
-            status += "ERROR - Password must be at least of 5 characters" + '\n';
+            string as = "Password must be at least of 5 characters" + '\n';
+            statusLocal = statusLocal + as;
         }
 
         if (!checkUserList(recvStrings[0], ut)) // Check if the nickname have already been used.
         {
             result = false;
-            status += "ERROR - This user does not exist" + '\n';
+            string as = "This user does not exist" + '\n';
+            statusLocal = statusLocal + as;
         }
         else
         {
             if (ut.getPasswordDigest() != computeHash(recvStrings[1], ut.getSalt()))
             {
                 result = false;
-                status += "ERROR - Wrong password!" + '\n';
+                string as = "Wrong password!" + '\n';
+                statusLocal = statusLocal + as;
             }
             else
             {
@@ -486,30 +513,29 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
                 if (connCheck == 1)
                 {
                     result = false;
-                    status += "ERROR - The user is already logged in!" + '\n';
+                    string as = "The user is already logged in!" + '\n';
+                    statusLocal = statusLocal + as;
                 }
             }
         }
 
         if (result)
         {
-            status = "ok-" + to_string(ut.getCounter());
-            sendString(socketDescriptor, status, K); // CONTENT MESSAGE - Send the result of the login operation.
+            status = "ok-" + ut.getCounter();
+            sendString(socketDescriptor, packContentMessage(status, K), K); // CONTENT MESSAGE - Send the result of the login operation.
 
             // if the password of the choosen nickname is correct.
-            mutexConnections.lock();
             refreshConnectionInformation(ut.getNickname(), socketDescriptor, "login");
-            mutexConnections.unlock();
 
             result = true;
             status = "Login ok!";
             sendIntegerNumber(socketDescriptor, 1); // INTEGER MESSAGE - Send the result of the login/registration process.
-
             nickName = ut.getNickname();
         }
         else
         {
-            sendString(socketDescriptor, status, K); // CONTENT MESSAGE - Send the result of the login operation.
+            sendString(socketDescriptor, packContentMessage(statusLocal, K), K); // CONTENT MESSAGE - Send the result of the login operation.
+            // sendIntegerNumber(socketDescriptor, 0);                              // INTEGER MESSAGE - Send the result of the login/registration process.
         }
 
     } while (!result);
@@ -517,19 +543,18 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
 
 void BBSsession(int socketDescriptor, string nickNameRecv, string K)
 {
+    refreshConnectionInformation(nickNameRecv, socketDescriptor, "login");
     string req;
     ContentMessage msg;
     vector<string> requests;
     string content;
     int requestType;
-
     const uint64_t userIndex = checkUserListIndex(nickNameRecv);
-
     uint64_t counterCurrent = getUserCounter(userIndex);
 
     while (true)
     {
-        req = receiveString(socketDescriptor, K); // Get the request type from the client.
+        req = receiveString(socketDescriptor, K); // CONTENT MESSAGE - Get the request type from the client.
 
         msg.deconcatenateAndAssign(req);
         content = ContentMessageGetContent(msg, K);
@@ -540,10 +565,7 @@ void BBSsession(int socketDescriptor, string nickNameRecv, string K)
             uint64_t counterMsg = stoull(requests[1]);
             if (counterMsg == counterCurrent + 1)
             {
-                mutexConnections.lock();
                 refreshConnectionInformation(nickNameRecv, socketDescriptor, "logout");
-                mutexConnections.unlock();
-
                 IncrementUserCounter(userIndex);
                 counterCurrent++;
             }
@@ -558,19 +580,22 @@ void BBSsession(int socketDescriptor, string nickNameRecv, string K)
 
                 if (requestType == LIST_REQUEST_TYPE)
                 {
-                    sendString(socketDescriptor, List(stoi(requests[1])));
+                    string pack = packContentMessage(List(stoi(requests[1])), K);
+                    sendString(socketDescriptor, pack, K);
                 }
                 else if (requestType == GET_REQUEST_TYPE)
                 {
-                    sendString(socketDescriptor, Get(stoi(requests[1])).toListed());
+                    string pack = packContentMessage(Get(stoi(requests[1])).toListed(), K);
+                    sendString(socketDescriptor, pack, K);
                 }
                 else if (requestType == ADD_REQUEST_TYPE)
                 {
-                    vector<string> requestParts = divideString(receiveString(socketDescriptor), '|');
+                    vector<string> requestParts = divideString(requests[1], '|');
                     Add(requestParts[0], nickNameRecv, requestParts[1]);
                     sendIntegerNumber(socketDescriptor, 1); // INTEGER NUMBER - Send the result of the ADD operation.
                 }
 
+                refreshConnectionInformation(nickNameRecv, socketDescriptor, "generic");
                 IncrementUserCounter(userIndex);
                 counterCurrent++;
             }

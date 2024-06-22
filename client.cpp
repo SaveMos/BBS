@@ -125,14 +125,14 @@ int main()
             // Create the new user structure.
             userBBS ut;
             ut.setNickname(p_nick);
-            ut.setSalt("s");
+            ut.setSalt("SALE");
             ut.setEmail(p_mail);
             ut.setPasswordDigest(p_pwd);
             ut.setCounter(0);
             ut.concatenateFields(req);
 
             req = packContentMessage(req, K);
-
+        
             sendString(sd, req, K); // CONTENT MESSAGE - Send the credentials to the server.
 
             req = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the wanted operation.
@@ -161,13 +161,14 @@ int main()
 
         // --------------- CHALLENGE --------------------------------------------
         req = receiveString(sd, K); // CONTENT MESSAGE - Receive the challenge.
-
-        if (verifyContentMessageHMAC(req))
+        ContentMessage msg;
+        if (verifyContentMessageHMAC(req , msg))
         {
-            cout << "Received challenge: " << req << endl; // Print the challenge.
+            cout << "Received challenge: " << ContentMessageGetContent(msg , K) << endl; // Print the challenge.
             cout << "Send the same value to the server" << endl;
             cin >> req;
-            sendString(sd, req, K); // CONTENT MESSAGE - Send the response to the challenge.
+
+            sendString(sd, packContentMessage(req, K), K); // CONTENT MESSAGE - Send the response to the challenge.
         }
         {
             // The client muore.
@@ -193,18 +194,18 @@ int main()
             cin >> p_pwd;
 
             string recvString = p_nick + "-" + p_pwd;
-            recvString = packContentMessage(recvString, K);
-            sendString(sd, recvString, K); // CONTENT MESSAGE - Sending credentials.
+
+            sendString(sd, packContentMessage(recvString, K), K); // CONTENT MESSAGE - Sending credentials.
 
             recvString = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the login operation.
-
+     
             ContentMessage msg;
             if (verifyContentMessageHMAC(recvString, msg)) // Verify the HMAC of the received message.
             {
                 // Valid HMAC.
                 recvString = ContentMessageGetContent(msg, K); // Extract the content.
-
-                vector<string> requestParts = divideString(receiveString(sd), '-');
+              
+                vector<string> requestParts = divideString(recvString, '-');
 
                 if (requestParts[0] != "ok")
                 {
@@ -344,7 +345,6 @@ int main()
 
                 if (requestString.length() >= 4)
                 {
-
                     cout << "ERROR - Command not valid" << endl;
                     continue;
                 }
@@ -363,7 +363,7 @@ int main()
                         body = insertLineFromKeyboard();
                     } while (body.length() == 0);
 
-                    string recvString = to_string(ADD_REQUEST_TYPE) + "-" + title + '|' + body + "-" + to_string(counter + 1);
+                    string recvString = to_string(ADD_REQUEST_TYPE) + "-" + (title + '|' + body) + "-" + to_string(counter + 1);
                     recvString = packContentMessage(recvString, K);
                     sendString(sd, recvString, K); // CONTENT MESSAGE - Send the wanted operation.
 

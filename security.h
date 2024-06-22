@@ -30,36 +30,38 @@ void handleErrors()
     abort();
 }
 
-std::string computeHash(string input, string salt = "") {
+// ----------------------------- Digest e HMAC -------------------------------------------
+
+string computeHash(string input, string salt = "") {
     // Creazione del contesto
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (mdctx == nullptr) {
-        throw std::runtime_error("EVP_MD_CTX_new failed");
+        throw runtime_error("EVP_MD_CTX_new failed");
     }
 
     // Selezione dell'algoritmo di hash (SHA-256)
     const EVP_MD *md = EVP_sha256();
     if (md == nullptr) {
         EVP_MD_CTX_free(mdctx);
-        throw std::runtime_error("EVP_sha256 failed");
+        throw runtime_error("EVP_sha256 failed");
     }
 
     // Inizializzazione del contesto per l'hash
     if (1 != EVP_DigestInit_ex(mdctx, md, nullptr)) {
         EVP_MD_CTX_free(mdctx);
-        throw std::runtime_error("EVP_DigestInit_ex failed");
+        throw runtime_error("EVP_DigestInit_ex failed");
     }
 
     // Aggiornamento del contesto con il salt
     if (1 != EVP_DigestUpdate(mdctx, salt.c_str(), salt.size())) {
         EVP_MD_CTX_free(mdctx);
-        throw std::runtime_error("EVP_DigestUpdate failed");
+        throw runtime_error("EVP_DigestUpdate failed");
     }
 
     // Aggiornamento del contesto con i dati
     if (1 != EVP_DigestUpdate(mdctx, input.c_str(), input.size())) {
         EVP_MD_CTX_free(mdctx);
-        throw std::runtime_error("EVP_DigestUpdate failed");
+        throw runtime_error("EVP_DigestUpdate failed");
     }
 
     // Buffer per l'output dell'hash
@@ -69,60 +71,60 @@ std::string computeHash(string input, string salt = "") {
     // Finalizzazione del calcolo dell'hash
     if (1 != EVP_DigestFinal_ex(mdctx, hash, &lengthOfHash)) {
         EVP_MD_CTX_free(mdctx);
-        throw std::runtime_error("EVP_DigestFinal_ex failed");
+        throw runtime_error("EVP_DigestFinal_ex failed");
     }
 
     // Deallocazione del contesto
     EVP_MD_CTX_free(mdctx);
 
     // Convertiamo l'hash in una stringa esadecimale
-    std::stringstream ss;
+    stringstream ss;
     for (unsigned int i = 0; i < lengthOfHash; ++i) {
-        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
+        ss << hex << setw(2) << setfill('0') << static_cast<int>(hash[i]);
     }
 
     return ss.str();
 }
 
-std::string calculateHMAC(string key, string message, const EVP_MD *evp_md)
+string calculateHMAC(string key, string message, const EVP_MD *evp_md)
 {
     EVP_PKEY *pkey = nullptr;
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     unsigned char *result = nullptr;
     size_t result_len = 0;
-    std::string hmac;
+    string hmac;
 
     if (!ctx)
     {
-        throw std::runtime_error("Errore nella creazione del contesto EVP_MD_CTX");
+        throw runtime_error("Errore nella creazione del contesto EVP_MD_CTX");
     }
 
     pkey = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, nullptr, (const unsigned char *)key.c_str(), key.size());
     if (!pkey)
     {
         EVP_MD_CTX_free(ctx);
-        throw std::runtime_error("Errore nella creazione della chiave HMAC");
+        throw runtime_error("Errore nella creazione della chiave HMAC");
     }
 
     if (EVP_DigestSignInit(ctx, nullptr, evp_md, nullptr, pkey) != 1)
     {
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        throw std::runtime_error("Errore nell'inizializzazione dell'HMAC con EVP_DigestSignInit");
+        throw runtime_error("Errore nell'inizializzazione dell'HMAC con EVP_DigestSignInit");
     }
 
     if (EVP_DigestSignUpdate(ctx, message.c_str(), message.length()) != 1)
     {
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        throw std::runtime_error("Errore nell'aggiornamento del contesto HMAC con il messaggio");
+        throw runtime_error("Errore nell'aggiornamento del contesto HMAC con il messaggio");
     }
 
     if (EVP_DigestSignFinal(ctx, nullptr, &result_len) != 1)
     {
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        throw std::runtime_error("Errore nel recupero della dimensione del risultato HMAC");
+        throw runtime_error("Errore nel recupero della dimensione del risultato HMAC");
     }
 
     result = (unsigned char *)OPENSSL_malloc(result_len);
@@ -130,7 +132,7 @@ std::string calculateHMAC(string key, string message, const EVP_MD *evp_md)
     {
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        throw std::runtime_error("Errore nell'allocazione della memoria per il risultato HMAC");
+        throw runtime_error("Errore nell'allocazione della memoria per il risultato HMAC");
     }
 
     if (EVP_DigestSignFinal(ctx, result, &result_len) != 1)
@@ -138,7 +140,7 @@ std::string calculateHMAC(string key, string message, const EVP_MD *evp_md)
         OPENSSL_free(result);
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        throw std::runtime_error("Errore nella finalizzazione del calcolo HMAC");
+        throw runtime_error("Errore nella finalizzazione del calcolo HMAC");
     }
 
     // Conversione del risultato HMAC in una stringa esadecimale
@@ -158,7 +160,7 @@ std::string calculateHMAC(string key, string message, const EVP_MD *evp_md)
     return hmac;
 }
 
-std::string calculateHMAC(string key, string message){
+string calculateHMAC(string key, string message){
     const EVP_MD *evp_md = EVP_sha256();
     return calculateHMAC(key, message , evp_md);
 }
@@ -180,24 +182,24 @@ bool checkSaltedPasswordDigest(string inputPassword, string passwordDigest,  str
     return false;
 }
 
-std::vector<unsigned char> stringToUnsignedCharVector(const std::string &str)
+vector<unsigned char> stringToUnsignedCharVector(const string &str)
 {
-    return std::vector<unsigned char>(str.begin(), str.end());
+    return vector<unsigned char>(str.begin(), str.end());
 }
 
-void stringToCharArray(const std::string &str, char *charArray, size_t maxLen)
+void stringToCharArray(const string &str, char *charArray, size_t maxLen)
 {
-    std::strncpy(charArray, str.c_str(), maxLen - 1);
+    strncpy(charArray, str.c_str(), maxLen - 1);
     charArray[maxLen - 1] = '\0'; // Ensure null termination
 }
 
+// ----------------------------- AES -------------------------------------------
 // Funzione per cifrare una stringa
-std::vector<unsigned char> encrypt_AES(const std::string &plaintext, const std::string &key)
-{
+vector<unsigned char> encrypt_AES(const string &plaintext, const string &key){
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
-        throw std::runtime_error("Errore nella creazione del contesto di cifratura");
+        throw runtime_error("AES Encr - Errore nella creazione del contesto di cifratura");
     }
 
     // Genera un IV casuale
@@ -205,20 +207,20 @@ std::vector<unsigned char> encrypt_AES(const std::string &plaintext, const std::
     if (!RAND_bytes(iv, EVP_CIPHER_iv_length(EVP_aes_256_cbc())))
     {
         EVP_CIPHER_CTX_free(ctx);
-        throw std::runtime_error("Errore nella generazione dell'IV");
+        throw runtime_error("AES Encr - Errore nella generazione dell'IV");
     }
 
     // Inizializzazione della cifratura
     if (EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, reinterpret_cast<const unsigned char *>(key.data()), iv) != 1)
     {
         EVP_CIPHER_CTX_free(ctx);
-        throw std::runtime_error("Errore nell'inizializzazione della cifratura");
+        throw runtime_error("AES Encr - Errore nell'inizializzazione della cifratura");
     }
 
     // Aggiungi padding al plaintext
     int plaintext_len = plaintext.size();
     int ciphertext_len = plaintext_len + EVP_CIPHER_block_size(EVP_aes_256_cbc());
-    std::vector<unsigned char> ciphertext(ciphertext_len + EVP_CIPHER_iv_length(EVP_aes_256_cbc()));
+    vector<unsigned char> ciphertext(ciphertext_len + EVP_CIPHER_iv_length(EVP_aes_256_cbc()));
 
     // Copia l'IV nel ciphertext
     memcpy(ciphertext.data(), iv, EVP_CIPHER_iv_length(EVP_aes_256_cbc()));
@@ -229,14 +231,14 @@ std::vector<unsigned char> encrypt_AES(const std::string &plaintext, const std::
     if (EVP_EncryptUpdate(ctx, ciphertext_ptr, &len, reinterpret_cast<const unsigned char *>(plaintext.data()), plaintext_len) != 1)
     {
         EVP_CIPHER_CTX_free(ctx);
-        throw std::runtime_error("Errore nella cifratura del testo");
+        throw runtime_error("AES Encr - Errore nella cifratura del testo");
     }
     ciphertext_len = len;
 
     if (EVP_EncryptFinal_ex(ctx, ciphertext_ptr + len, &len) != 1)
     {
         EVP_CIPHER_CTX_free(ctx);
-        throw std::runtime_error("Errore nella finalizzazione della cifratura");
+        throw runtime_error("AES Encr - Errore nella finalizzazione della cifratura");
     }
     ciphertext_len += len;
 
@@ -247,14 +249,12 @@ std::vector<unsigned char> encrypt_AES(const std::string &plaintext, const std::
     return ciphertext;
 }
 
-
 // Funzione per decifrare una stringa
-std::string decrypt_AES(const std::vector<unsigned char> &ciphertext, const std::string &key)
-{
+string decrypt_AES(const vector<unsigned char> &ciphertext, const string &key){
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
-        throw std::runtime_error("Errore nella creazione del contesto di decifratura");
+        throw runtime_error("AES Decr - Errore nella creazione del contesto di decifratura");
     }
 
     // Estrai l'IV dal ciphertext
@@ -265,25 +265,25 @@ std::string decrypt_AES(const std::vector<unsigned char> &ciphertext, const std:
     if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, reinterpret_cast<const unsigned char *>(key.data()), iv) != 1)
     {
         EVP_CIPHER_CTX_free(ctx);
-        throw std::runtime_error("Errore nell'inizializzazione della decifratura");
+        throw runtime_error("AES Decr - Errore nell'inizializzazione della decifratura");
     }
 
     // Decifra il testo
     int ciphertext_len = ciphertext.size() - EVP_CIPHER_iv_length(EVP_aes_256_cbc());
-    std::vector<unsigned char> paddedPlaintext(ciphertext_len);
+    vector<unsigned char> paddedPlaintext(ciphertext_len);
 
     int len;
     if (EVP_DecryptUpdate(ctx, paddedPlaintext.data(), &len, ciphertext.data() + EVP_CIPHER_iv_length(EVP_aes_256_cbc()), ciphertext_len) != 1)
     {
         EVP_CIPHER_CTX_free(ctx);
-        throw std::runtime_error("Errore nella decifratura del testo");
+        throw runtime_error("AES Decr - Errore nella decifratura del testo");
     }
     int plaintext_len = len;
 
     if (EVP_DecryptFinal_ex(ctx, paddedPlaintext.data() + len, &len) != 1)
     {
         EVP_CIPHER_CTX_free(ctx);
-        throw std::runtime_error("Errore nella finalizzazione della decifratura");
+        throw runtime_error("AES Decr - Errore nella finalizzazione della decifratura");
     }
     plaintext_len += len;
 
@@ -291,23 +291,23 @@ std::string decrypt_AES(const std::vector<unsigned char> &ciphertext, const std:
     paddedPlaintext.resize(plaintext_len);
 
     EVP_CIPHER_CTX_free(ctx);
-    return std::string(paddedPlaintext.begin(), paddedPlaintext.end());
+    return string(paddedPlaintext.begin(), paddedPlaintext.end());
 }
 
-std::string decrypt_AES(const string &ciphertext, const std::string &key){
+string decrypt_AES(const string &ciphertext, const string &key){
     return decrypt_AES(stringToVectorUnsignedChar(ciphertext) , key);
 }
 
 // --------------- RSA Part -----------------------------------------------------------------------------------------------
 
-// Funzione per convertire std::vector<unsigned char> in EVP_PKEY*
-EVP_PKEY *convertToEVP_PKEY(const std::vector<unsigned char> &privateKeyVec)
+// Funzione per convertire vector<unsigned char> in EVP_PKEY*
+EVP_PKEY *convertToEVP_PKEY(const vector<unsigned char> &privateKeyVec)
 {
     const unsigned char *keyData = privateKeyVec.data();
     BIO *bio = BIO_new_mem_buf(keyData, privateKeyVec.size());
     if (!bio)
     {
-        throw std::runtime_error("Errore nella creazione del BIO");
+        throw runtime_error("Errore nella creazione del BIO");
     }
 
     // Legge la chiave privata RSA dal BIO
@@ -315,27 +315,27 @@ EVP_PKEY *convertToEVP_PKEY(const std::vector<unsigned char> &privateKeyVec)
     if (!pkey)
     {
         BIO_free(bio);
-        throw std::runtime_error("Errore nella lettura della chiave privata dal BIO");
+        throw runtime_error("Errore nella lettura della chiave privata dal BIO");
     }
 
     BIO_free(bio);
     return pkey;
 }
 
-// Funzione per convertire un EVP_PKEY* in std::vector<unsigned char>
-std::vector<unsigned char> convertEVP_PKEYToVector(const EVP_PKEY *pkey)
+// Funzione per convertire un EVP_PKEY* in vector<unsigned char>
+vector<unsigned char> convertEVP_PKEYToVector(const EVP_PKEY *pkey)
 {
     BIO *bio = BIO_new(BIO_s_mem());
     if (!bio)
     {
-        throw std::runtime_error("Errore nella creazione del BIO");
+        throw runtime_error("Errore nella creazione del BIO");
     }
 
     // Scrive la chiave privata nel BIO
     if (!PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr, nullptr))
     {
         BIO_free(bio);
-        throw std::runtime_error("Errore nella scrittura della chiave privata nel BIO");
+        throw runtime_error("Errore nella scrittura della chiave privata nel BIO");
     }
 
     // Recupera i dati dal BIO
@@ -344,23 +344,23 @@ std::vector<unsigned char> convertEVP_PKEYToVector(const EVP_PKEY *pkey)
     if (bioLen <= 0)
     {
         BIO_free(bio);
-        throw std::runtime_error("Errore nel recupero dei dati dal BIO");
+        throw runtime_error("Errore nel recupero dei dati dal BIO");
     }
 
-    // Converte i dati in un std::vector<unsigned char>
-    std::vector<unsigned char> keyVec(bioData, bioData + bioLen);
+    // Converte i dati in un vector<unsigned char>
+    vector<unsigned char> keyVec(bioData, bioData + bioLen);
 
     BIO_free(bio);
     return keyVec;
 }
 
 // Funzione per convertire una stringa contenente una chiave privata in EVP_PKEY*
-EVP_PKEY *convertStringToPrivateEVP_PKEY(const std::string &privateKeyStr)
+EVP_PKEY *convertStringToPrivateEVP_PKEY(const string &privateKeyStr)
 {
     BIO *bio = BIO_new_mem_buf(privateKeyStr.data(), privateKeyStr.size());
     if (!bio)
     {
-        throw std::runtime_error("Errore nella creazione del BIO");
+        throw runtime_error("Errore nella creazione del BIO");
     }
 
     // Legge la chiave privata RSA dal BIO
@@ -368,7 +368,7 @@ EVP_PKEY *convertStringToPrivateEVP_PKEY(const std::string &privateKeyStr)
     if (!pkey)
     {
         BIO_free(bio);
-        throw std::runtime_error("Errore nella lettura della chiave privata dal BIO");
+        throw runtime_error("Errore nella lettura della chiave privata dal BIO");
     }
 
     BIO_free(bio);
@@ -376,55 +376,55 @@ EVP_PKEY *convertStringToPrivateEVP_PKEY(const std::string &privateKeyStr)
 }
 
 // Funzione per convertire un EVP_PKEY* in una stringa contenente una chiave privata
-std::string convertPrivateEVP_PKEYToString(const EVP_PKEY *pkey)
+string convertPrivateEVP_PKEYToString(const EVP_PKEY *pkey)
 {
     BIO *bio = BIO_new(BIO_s_mem());
     if (!bio)
     {
-        throw std::runtime_error("Errore nella creazione del BIO");
+        throw runtime_error("Errore nella creazione del BIO");
     }
 
     // Scrive la chiave privata nel BIO
     if (!PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr, nullptr))
     {
         BIO_free(bio);
-        throw std::runtime_error("Errore nella scrittura della chiave privata nel BIO");
+        throw runtime_error("Errore nella scrittura della chiave privata nel BIO");
     }
 
     // Converte il BIO in una stringa
     char *bioData;
     long bioLen = BIO_get_mem_data(bio, &bioData);
-    std::string privateKeyStr(bioData, bioLen);
+    string privateKeyStr(bioData, bioLen);
 
     BIO_free(bio);
     return privateKeyStr;
 }
 
-// Helper function to convert EVP_PKEY to std::string
-std::string convertPublicEVP_PKEYToString(const EVP_PKEY *pkey)
+// Helper function to convert EVP_PKEY to string
+string convertPublicEVP_PKEYToString(const EVP_PKEY *pkey)
 {
-    std::unique_ptr<BIO, decltype(&BIO_free)> bio(BIO_new(BIO_s_mem()), BIO_free);
+    unique_ptr<BIO, decltype(&BIO_free)> bio(BIO_new(BIO_s_mem()), BIO_free);
     if (!PEM_write_bio_PUBKEY(bio.get(), pkey))
     {
-        throw std::runtime_error("Error writing public key to BIO");
+        throw runtime_error("Error writing public key to BIO");
     }
 
     BUF_MEM *bufferPtr;
     BIO_get_mem_ptr(bio.get(), &bufferPtr);
     BIO_set_close(bio.get(), BIO_NOCLOSE);
 
-    std::string publicKey(bufferPtr->data, bufferPtr->length);
+    string publicKey(bufferPtr->data, bufferPtr->length);
     return publicKey;
 }
 
-// Helper function to convert std::string to EVP_PKEY
-EVP_PKEY *convertStringToPublicEVP_PKEY(const std::string &publicKeyStr)
+// Helper function to convert string to EVP_PKEY
+EVP_PKEY *convertStringToPublicEVP_PKEY(const string &publicKeyStr)
 {
-    std::unique_ptr<BIO, decltype(&BIO_free)> bio(BIO_new_mem_buf(publicKeyStr.data(), publicKeyStr.length()), BIO_free);
+    unique_ptr<BIO, decltype(&BIO_free)> bio(BIO_new_mem_buf(publicKeyStr.data(), publicKeyStr.length()), BIO_free);
     EVP_PKEY *pkey = PEM_read_bio_PUBKEY(bio.get(), nullptr, nullptr, nullptr);
     if (!pkey)
     {
-        throw std::runtime_error("Error reading public key from BIO");
+        throw runtime_error("Error reading public key from BIO");
     }
     return pkey;
 }
@@ -437,7 +437,7 @@ EVP_PKEY *loadRSAKey(const char *path, const bool public_key)
 
     if (!file)
     {
-        throw std::runtime_error("RSA Keys file cannot be opened!");
+        throw runtime_error("RSA Keys file cannot be opened!");
     }
 
     if (public_key)
@@ -453,7 +453,7 @@ EVP_PKEY *loadRSAKey(const char *path, const bool public_key)
 
     if (!pkey)
     {
-        throw std::runtime_error("RSA Keys cannot be loaded!");
+        throw runtime_error("RSA Keys cannot be loaded!");
     }
 
     return pkey;
@@ -469,12 +469,12 @@ EVP_PKEY *loadRSAKey(const bool public_key)
         FILE *file = fopen(PUBLIC_KEY_PATH, "r");
         if (!file)
         {
-            throw std::runtime_error("RSA Public Key file cannot be opened!");
+            throw runtime_error("RSA Public Key file cannot be opened!");
         }
         pkey = PEM_read_PUBKEY(file, nullptr, nullptr, nullptr);
         if (!pkey)
         {
-            throw std::runtime_error("RSA Public Key cannot be loaded!");
+            throw runtime_error("RSA Public Key cannot be loaded!");
         }
         fclose(file);
     }
@@ -483,12 +483,12 @@ EVP_PKEY *loadRSAKey(const bool public_key)
         FILE *file = fopen(PRIVATE_KEY_PATH, "r");
         if (!file)
         {
-            throw std::runtime_error("RSA Private Key file cannot be opened!");
+            throw runtime_error("RSA Private Key file cannot be opened!");
         }
         pkey = PEM_read_PrivateKey(file, nullptr, nullptr, (void *)PRIVATE_ENC);
         if (!pkey)
         {
-            throw std::runtime_error("RSA Private Key cannot be loaded!");
+            throw runtime_error("RSA Private Key cannot be loaded!");
         }
         fclose(file);
     }
@@ -496,39 +496,39 @@ EVP_PKEY *loadRSAKey(const bool public_key)
     return pkey;
 }
 
-std::string rsa_encrypt(const std::string &plainText, EVP_PKEY *pkey)
+string rsa_encrypt(const string &plainText, EVP_PKEY *pkey)
 {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
     EVP_PKEY_free(pkey);
     if (ctx == nullptr)
     {
-        throw std::runtime_error("Errore creazione contesto EVP_PKEY_CTX per cifratura");
+        throw runtime_error("Errore creazione contesto EVP_PKEY_CTX per cifratura");
     }
 
     if (EVP_PKEY_encrypt_init(ctx) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore inizializzazione operazione di cifratura");
+        throw runtime_error("Errore inizializzazione operazione di cifratura");
     }
 
     if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore impostazione padding RSA");
+        throw runtime_error("Errore impostazione padding RSA");
     }
 
     size_t outlen;
     if (EVP_PKEY_encrypt(ctx, nullptr, &outlen, (const unsigned char *)plainText.c_str(), plainText.length()) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore determinazione dimensione buffer per cifratura");
+        throw runtime_error("Errore determinazione dimensione buffer per cifratura");
     }
 
-    std::string cipherText(outlen, '\0');
+    string cipherText(outlen, '\0');
     if (EVP_PKEY_encrypt(ctx, (unsigned char *)cipherText.data(), &outlen, (const unsigned char *)plainText.c_str(), plainText.length()) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Errore cifratura dati");
+        throw runtime_error("Errore cifratura dati");
     }
 
     EVP_PKEY_CTX_free(ctx);
@@ -536,27 +536,27 @@ std::string rsa_encrypt(const std::string &plainText, EVP_PKEY *pkey)
     return cipherText;
 }
 
-std::string rsa_decrypt(const std::string &cipherText, EVP_PKEY *pkey)
+string rsa_decrypt(const string &cipherText, EVP_PKEY *pkey)
 {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
     if (ctx == nullptr)
     {
         EVP_PKEY_free(pkey);
-        throw std::runtime_error("Errore creazione contesto EVP_PKEY_CTX per decifratura");
+        throw runtime_error("Errore creazione contesto EVP_PKEY_CTX per decifratura");
     }
 
     if (EVP_PKEY_decrypt_init(ctx) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        throw std::runtime_error("Errore inizializzazione operazione di decifratura");
+        throw runtime_error("Errore inizializzazione operazione di decifratura");
     }
 
     if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        throw std::runtime_error("Errore impostazione padding RSA");
+        throw runtime_error("Errore impostazione padding RSA");
     }
 
     size_t outlen;
@@ -564,15 +564,15 @@ std::string rsa_decrypt(const std::string &cipherText, EVP_PKEY *pkey)
     {
         EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        throw std::runtime_error("Errore determinazione dimensione buffer per decifratura");
+        throw runtime_error("Errore determinazione dimensione buffer per decifratura");
     }
 
-    std::string plainText(outlen, '\0');
+    string plainText(outlen, '\0');
     if (EVP_PKEY_decrypt(ctx, (unsigned char *)plainText.data(), &outlen, (const unsigned char *)cipherText.c_str(), cipherText.length()) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        throw std::runtime_error("Errore decifratura dati");
+        throw runtime_error("Errore decifratura dati");
     }
 
     EVP_PKEY_CTX_free(ctx);
@@ -585,38 +585,38 @@ std::string rsa_decrypt(const std::string &cipherText, EVP_PKEY *pkey)
 }
 
 // Function to create a digital signature as a vector of unsigned char
-std::vector<unsigned char> createDigitalSignature(const std::string &message, EVP_PKEY *pkey)
+vector<unsigned char> createDigitalSignature(const string &message, EVP_PKEY *pkey)
 {
     EVP_MD_CTX *mdCtx = EVP_MD_CTX_new();
     if (!mdCtx)
     {
-        throw std::runtime_error("Failed to create message digest context");
+        throw runtime_error("Failed to create message digest context");
     }
 
     if (EVP_DigestSignInit(mdCtx, nullptr, EVP_sha256(), nullptr, pkey) <= 0)
     {
         EVP_MD_CTX_free(mdCtx);
-        throw std::runtime_error("Failed to initialize signing operation");
+        throw runtime_error("Failed to initialize signing operation");
     }
 
     if (EVP_DigestSignUpdate(mdCtx, message.c_str(), message.size()) <= 0)
     {
         EVP_MD_CTX_free(mdCtx);
-        throw std::runtime_error("Failed to add message to signing operation");
+        throw runtime_error("Failed to add message to signing operation");
     }
 
     size_t signatureLen;
     if (EVP_DigestSignFinal(mdCtx, nullptr, &signatureLen) <= 0)
     {
         EVP_MD_CTX_free(mdCtx);
-        throw std::runtime_error("Failed to finalize signing operation to get signature length");
+        throw runtime_error("Failed to finalize signing operation to get signature length");
     }
 
-    std::vector<unsigned char> signature(signatureLen);
+    vector<unsigned char> signature(signatureLen);
     if (EVP_DigestSignFinal(mdCtx, signature.data(), &signatureLen) <= 0)
     {
         EVP_MD_CTX_free(mdCtx);
-        throw std::runtime_error("Failed to finalize signing operation to get the actual signature");
+        throw runtime_error("Failed to finalize signing operation to get the actual signature");
     }
 
     EVP_MD_CTX_free(mdCtx);
@@ -625,27 +625,27 @@ std::vector<unsigned char> createDigitalSignature(const std::string &message, EV
 }
 
 // Function to verify a digital signature
-bool verifyDigitalSignature(const std::string &message, const std::vector<unsigned char> &signature, EVP_PKEY *pkey)
+bool verifyDigitalSignature(const string &message, const vector<unsigned char> &signature, EVP_PKEY *pkey)
 {
     // Create the message digest context
     EVP_MD_CTX *mdCtx = EVP_MD_CTX_new();
     if (!mdCtx)
     {
-        throw std::runtime_error("Failed to create message digest context");
+        throw runtime_error("Failed to create message digest context");
     }
 
     // Initialize the verification operation
     if (EVP_DigestVerifyInit(mdCtx, nullptr, EVP_sha256(), nullptr, pkey) <= 0)
     {
         EVP_MD_CTX_free(mdCtx);
-        throw std::runtime_error("Failed to initialize verification operation");
+        throw runtime_error("Failed to initialize verification operation");
     }
 
     // Add the message to be verified
     if (EVP_DigestVerifyUpdate(mdCtx, message.c_str(), message.size()) <= 0)
     {
         EVP_MD_CTX_free(mdCtx);
-        throw std::runtime_error("Failed to add message to verification operation");
+        throw runtime_error("Failed to add message to verification operation");
     }
 
     // Perform the verification
@@ -656,7 +656,7 @@ bool verifyDigitalSignature(const std::string &message, const std::vector<unsign
     return result == 1;
 }
 
-bool verifyDigitalSignature(const std::string &message, const std::string &signature, EVP_PKEY *pkey)
+bool verifyDigitalSignature(const string &message, const string &signature, EVP_PKEY *pkey)
 {
     vector<unsigned char> vec = stringToVectorUnsignedChar(signature);
     return verifyDigitalSignature(message, vec, pkey);
@@ -668,7 +668,7 @@ uint8_t generate_secure_random_8_unsigned_int()
     uint8_t random_number;
     if (RAND_bytes(reinterpret_cast<unsigned char *>(&random_number), sizeof(uint8_t)) != 1)
     {
-        throw std::runtime_error("RAND_bytes failed");
+        throw runtime_error("RAND_bytes failed");
     }
     return random_number;
 }
@@ -678,7 +678,7 @@ uint64_t generate_secure_random_64_unsigned_int()
     uint64_t random_number;
     if (RAND_bytes(reinterpret_cast<unsigned char *>(&random_number), sizeof(uint64_t)) != 1)
     {
-        throw std::runtime_error("RAND_bytes failed");
+        throw runtime_error("RAND_bytes failed");
     }
     return random_number;
 }
@@ -688,65 +688,65 @@ int generate_secure_random_int()
     int random_number;
     if (RAND_bytes(reinterpret_cast<unsigned char *>(&random_number), sizeof(int)) != 1)
     {
-        throw std::runtime_error("RAND_bytes failed");
+        throw runtime_error("RAND_bytes failed");
     }
     return random_number;
 }
 
-std::string generateRandomSalt(size_t length = 64)
+string generateRandomSalt(size_t length = 64)
 {
-    std::vector<unsigned char> salt(length);
+    vector<unsigned char> salt(length);
 
     if (!RAND_bytes(salt.data(), salt.size()))
     {
-        throw std::runtime_error("Error generating random bytes for salt");
+        throw runtime_error("Error generating random bytes for salt");
     }
 
     // Convert the salt to a hexadecimal string (if needed)
-    std::ostringstream oss;
+    ostringstream oss;
     for (size_t i = 0; i < salt.size(); ++i)
     {
-        oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(salt[i]);
+        oss << hex << setw(2) << setfill('0') << static_cast<int>(salt[i]);
     }
 
     return oss.str();
 }
 
-std::string generateRandomKey(size_t length = 64)
+string generateRandomKey(size_t length = 64)
 {
-    std::vector<unsigned char> aesKey(length);
+    vector<unsigned char> aesKey(length);
     if (!RAND_bytes(aesKey.data(), aesKey.size()))
     {
-        throw std::runtime_error("Error in the generation of the AES key");
+        throw runtime_error("Error in the generation of the AES key");
     }
     return vectorUnsignedCharToString(aesKey);
 }
 
-void generateRSAKeyPair(std::string &publicKey, std::string &privateKey, int bits = 2048)
+void generateRSAKeyPair(string &publicKey, string &privateKey, int bits = 2048)
 {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
     if (!ctx)
     {
-        throw std::runtime_error("Error creating EVP_PKEY_CTX");
+        throw runtime_error("Error creating EVP_PKEY_CTX");
     }
 
     if (EVP_PKEY_keygen_init(ctx) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Error initializing keygen context");
+        throw runtime_error("Error initializing keygen context");
     }
 
     if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, bits) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Error setting RSA key length");
+        throw runtime_error("Error setting RSA key length");
     }
 
     EVP_PKEY *pkey = nullptr;
     if (EVP_PKEY_keygen(ctx, &pkey) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Error generating RSA key pair");
+        throw runtime_error("Error generating RSA key pair");
     }
 
     // Extract the private key
@@ -756,7 +756,7 @@ void generateRSAKeyPair(std::string &publicKey, std::string &privateKey, int bit
         EVP_PKEY_free(pkey);
         EVP_PKEY_CTX_free(ctx);
         BIO_free_all(privateBIO);
-        throw std::runtime_error("Error writing private key to BIO");
+        throw runtime_error("Error writing private key to BIO");
     }
 
     // Extract the public key
@@ -767,7 +767,7 @@ void generateRSAKeyPair(std::string &publicKey, std::string &privateKey, int bit
         EVP_PKEY_CTX_free(ctx);
         BIO_free_all(privateBIO);
         BIO_free_all(publicBIO);
-        throw std::runtime_error("Error writing public key to BIO");
+        throw runtime_error("Error writing public key to BIO");
     }
 
     // Convert the BIOs to strings

@@ -20,7 +20,7 @@ string packContentMessage(string recvString, string K)
 {
     string ret;
     ContentMessage msg;
-    msg.setRandomIV();
+    msg.setIV(generateRandomKey(16));
     msg.setC(vectorUnsignedCharToString(encrypt_AES(recvString, K)));
     msg.setHMAC(calculateHMAC(msg.getIV(), msg.getC()));
     msg.concatenateFields(ret);

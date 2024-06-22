@@ -14,7 +14,7 @@ bool checkEmailFormat(string emailRecv){
     return regex_match(emailRecv, emailRegex);  //check the received string with the regex
 }
 
-std::vector<std::string> divideString(const std::string& str, char delimiter = '-') {
+std::vector<std::string> divideString(string str, char delimiter = '-') {
     std::vector<std::string> result;
     std::stringstream ss(str);
     std::string item;
@@ -83,6 +83,15 @@ std::string vectorUnsignedCharToString(const std::vector<unsigned char>& vec) {
 // Funzione per convertire std::string in std::vector<unsigned char>
 std::vector<unsigned char> stringToVectorUnsignedChar(const std::string& str) {
     return std::vector<unsigned char>(str.begin(), str.end());
+}
+
+bool containsNumbers(string str) {
+    for(char c : str) {
+        if(!isdigit(c)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 

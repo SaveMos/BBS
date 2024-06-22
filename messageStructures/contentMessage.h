@@ -89,12 +89,6 @@ public:
         this->IVdim = IV.size();
     }
 
-    void setRandomIV()
-    {
-        const string IV = generateRandomKey(16);
-        this->setIV(IV);
-    }
-
     // Getter e Setter per C
     string getC() const
     {
@@ -142,11 +136,11 @@ public:
 
         // Leggi le dimensioni
         getline(iss, part, '-');
-        size_t lengthIV = stoi(part);
+        size_t lengthIV = stoull(part);
         getline(iss, part, '-');
-        size_t lengthC = stoi(part);
+        size_t lengthC = stoull(part);
         getline(iss, part, '-');
-        size_t lengthHMAC = stoi(part);
+        size_t lengthHMAC = stoull(part);
 
         // Leggi i campi
         result.push_back(input.substr(iss.tellg(), lengthIV));
