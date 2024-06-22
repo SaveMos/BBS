@@ -8,13 +8,9 @@
 #include <iostream>
 #include <chrono>
 #include <string>
-#include "security.h"
 #include <openssl/evp.h>
 #include <openssl/rand.h>
-#include "messageStructures/simpleMessage.h"
-#include "messageStructures/contentMessage.h"
-#include "messageStructures/RSAEMessage.h"
-
+#include "messagePackingLibrary.h"
 using namespace std;
 
 void Client_RSAE(int sd, uint64_t R, string K)
@@ -33,6 +29,30 @@ void Client_RSAE(int sd, uint64_t R, string K)
     {
         // Not ok, abort connection
     }
+}
+
+void Check_and_print_the_received_ContentMessage(string recvString, string K, string &content, bool print = false)
+{
+    ContentMessage msg;
+    if (verifyContentMessageHMAC(recvString, msg)) // Verify the HMAC of the received message.
+    {
+        // Valid HMAC.
+        content = ContentMessageGetContent(msg, K); // Extract the content.
+        if (print)
+        {
+            cout << content << endl; // Print the list result sent by the server.
+        }
+    }
+    else
+    {
+        // Not valid HMAC.
+    }
+}
+
+void Check_and_print_the_received_ContentMessage(string recvString, string K, bool print = false)
+{
+    string content;
+    Check_and_print_the_received_ContentMessage(recvString, K, content, print);
 }
 
 int main()
@@ -71,6 +91,8 @@ int main()
     bool valid = false;
     string status = "";
 
+    uint64_t counter = 0;
+
     do
     {
         cout << "Insert 'reg' for register or insert 'log' for login" << endl;
@@ -81,21 +103,18 @@ int main()
     SimpleMessage helloMsg;
     const uint64_t R = generate_secure_random_64_unsigned_int();
     const string K = generateRandomKey(64);
-    //sendString(sd , "ciao" , K);
+    // sendString(sd , "ciao" , K);
 
     if (requestString == "reg")
     {
-
         string status;
         string req = "reg-" + to_string(R);
-        helloMsg.setContent(req);
-        string reqLength;
-        helloMsg.concatenateFields(reqLength);
-        // Registration test
-        sendString(sd, reqLength); // I want to registrate, so i send 0.
-        Client_RSAE(sd, R, K);
-        // RSAE ended ----------------------
-        do{
+        req = packSimpleMessage(req);
+        sendString(sd, req);   // SIMPLE MESSAGE - Send the registration request.
+        Client_RSAE(sd, R, K); // RSAE Procedure.
+
+        do
+        {
             cout << "Insert email" << endl;
             cin >> p_mail;
             cout << "Insert nickname" << endl;
@@ -103,120 +122,123 @@ int main()
             cout << "Insert password" << endl;
             cin >> p_pwd;
 
-            const string IV = generateRandomKey(16);
-
+            // Create the new user structure.
             userBBS ut;
             ut.setNickname(p_nick);
-            ut.setSalt(generateRandomSalt(4));
+            ut.setSalt("s");
             ut.setEmail(p_mail);
-            ut.setPasswordDigest(computeHash(p_pwd , ut.getSalt()));
+            ut.setPasswordDigest(p_pwd);
+            ut.setCounter(0);
+            ut.concatenateFields(req);
 
-            string recvString;
-            ut.concatenateFields(recvString);
-            
-            ContentMessage contentMsg;
-            contentMsg.setIV(IV);
-            contentMsg.setC(vectorUnsignedCharToString(encrypt_AES(recvString , K)));
-            contentMsg.setHMAC(calculateHMAC(contentMsg.getIV(),contentMsg.getC()));
-            contentMsg.concatenateFields(reqLength);
+            req = packContentMessage(req, K);
 
-            sendString(sd , reqLength , K); // Sending credentials.
+            sendString(sd, req, K); // CONTENT MESSAGE - Send the credentials to the server.
 
-            //receive the result of the registration operazion
-            status = receiveString(sd, K);
-
-            if (status != "ok")
+            req = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the wanted operation.
+            ContentMessage msg;
+            if (verifyContentMessageHMAC(req, msg)) // Verify the HMAC of the received message.
             {
-
-                cout << status << endl;
+                // Valid HMAC.
+                req = ContentMessageGetContent(msg, K); // Extract the content.
+                if (req != "ok")
+                {
+                    cout << req << endl; // Print the list result sent by the server.
+                    valid = false;
+                }
+                else
+                {
+                    valid = true;
+                }
             }
             else
             {
-                valid = true;
+                // Not valid HMAC.
+                throw std::runtime_error("Error: HMAC doesn't correspond, the message could have been alterated");
             }
 
-        }while(!valid);
-
+        } while (!valid);
 
         // --------------- CHALLENGE --------------------------------------------
-        reqLength = receiveString(sd , K);
+        req = receiveString(sd, K); // CONTENT MESSAGE - Receive the challenge.
 
-        string sendChallenge;
-        cout << "Received challenge: " << reqLength << endl;
-        cout << "Send the same value to the server" << endl;
-        cin >> sendChallenge;
-        sendString(sd , sendChallenge , K);
-      
-        
-         // --------------- FINE CHALLENGE --------------------------------------------
+        if (verifyContentMessageHMAC(req))
+        {
+            cout << "Received challenge: " << req << endl; // Print the challenge.
+            cout << "Send the same value to the server" << endl;
+            cin >> req;
+            sendString(sd, req, K); // CONTENT MESSAGE - Send the response to the challenge.
+        }
+        {
+            // The client muore.
+        }
+        // --------------- FINE CHALLENGE --------------------------------------------
     }
     else if (requestString == "log")
     {
-
         bool valid = false;
         string status;
+
         string req = "log-" + to_string(R);
-        helloMsg.setContent(req);
-        string reqLength;
-        helloMsg.concatenateFields(reqLength);
-        // Registration test
-        sendString(sd, reqLength); // I want to registrate, so i send 0.
+        sendString(sd, packSimpleMessage(req)); // SIMPLE MESSAGE - Send the login request.
 
         Client_RSAE(sd, R, K);
 
         do
         {
+            // Insert credentials
             cout << "Insert nickname" << endl;
             cin >> p_nick;
             cout << "Insert password" << endl;
             cin >> p_pwd;
 
-            const string IV = generateRandomKey(16);
+            string recvString = p_nick + "-" + p_pwd;
+            recvString = packContentMessage(recvString, K);
+            sendString(sd, recvString, K); // CONTENT MESSAGE - Sending credentials.
 
-            string recvString = p_nick+p_pwd;
-            
-            ContentMessage contentMsg;
-            contentMsg.setIV(IV);
-            contentMsg.setC(vectorUnsignedCharToString(encrypt_AES(recvString , K)));
-            contentMsg.setHMAC(calculateHMAC(contentMsg.getIV(),contentMsg.getC()));
-            contentMsg.concatenateFields(reqLength);
+            recvString = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the login operation.
 
-            sendString(sd , reqLength , K); // Sending credentials.
-
-            //receive the result of the registration operazion
-            status = receiveString(sd, K);
-
-
-            status = receiveString(sd);
-            if (status != "ok")
+            ContentMessage msg;
+            if (verifyContentMessageHMAC(recvString, msg)) // Verify the HMAC of the received message.
             {
+                // Valid HMAC.
+                recvString = ContentMessageGetContent(msg, K); // Extract the content.
 
-                cout << status << endl;
+                vector<string> requestParts = divideString(receiveString(sd), "-");
+
+                if (requestParts[0] != "ok")
+                {
+                    counter = 0;
+                    cout << recvString << endl; // Print the list result sent by the server.
+                    valid = false;
+                }
+                else
+                {
+                    counter = stoull(requestParts[1]);
+                    valid = true;
+                }
             }
             else
             {
-                valid = true;
+                // Not valid HMAC.
+                valid = false;
             }
 
         } while (!valid);
-
-    
     }
 
-    res = receiveIntegerNumber(sd); // Receive the result of the login/registration process.
+    res = receiveIntegerNumber(sd); // INTEGER MESSAGE - Receive the result of the login/registration process.
 
     if (res == 1)
     {
 
         if ((requestString == "log") || (requestString == "Log") || (requestString == "LOG"))
         {
-
             cout << "\nWelcome back!\n"
                  << endl; // The user already register, so he came back.
         }
         else
         {
-
             cout << "\nWelcome!\n"
                  << endl; // The user have just register himself.
         }
@@ -225,26 +247,28 @@ int main()
 
         while (true)
         {
+            // BBS Session
             cout << "----------------------------------\nAvailable commands:\n1)list-n\n2)get-n\n3)add\n4)logout\n\nDigit the wanted operation...\n----------------------------------" << endl;
             do
             {
-                // Even white spaces are inserted in the string
-                getline(cin, requestString); // Receive the type of operation wanted
+                getline(cin, requestString); // Receive the type of operation wanted, even white spaces are inserted in the string.
             } while (requestString.length() <= 2);
 
-            requestParts = divideString(requestString, '-'); // Divide the string on the '-'
+            requestParts = divideString(requestString, "-"); // Divide the string on the "-".
 
             if ((requestParts[0] == "logout") || (requestParts[0] == "Logout") || (requestParts[0] == "LOGOUT"))
             {
                 if (requestString.length() >= 7)
                 {
-
                     cout << "ERROR - Command not valid" << endl;
                     continue;
                 }
                 else
                 {
-                    sendIntegerNumber(sd, LOGOUT_REQUEST_TYPE);
+                    counter++;
+                    string recvString = "logout-" + to_string(counter);
+                    recvString = packContentMessage(recvString, K);
+                    sendString(sd, recvString, K);
                     cout << "Bye bye!\n----------------------------------" << endl;
                     return 0;
                 }
@@ -266,18 +290,24 @@ int main()
                 }
 
                 unsigned int howMany = stoi(requestParts[1]);
+
                 if (howMany <= 0)
                 {
                     cout << "ERROR - Not valid parameter, must be a positive integer!" << endl;
                     continue; // Not valid parameter.
                 }
-                sendIntegerNumber(sd, LIST_REQUEST_TYPE); // We want to see the id of the latest posts.
-                sendIntegerNumber(sd, howMany);           // Send the number of wanted posts.
-                cout << receiveString(sd) << endl;
+
+                string recvString = to_string(LIST_REQUEST_TYPE) + "-" + to_string(howMany) + "-" + to_string(counter + 1);
+                recvString = packContentMessage(recvString, K);
+                sendString(sd, recvString, K); // CONTENT MESSAGE - Send the wanted operation.
+
+                recvString = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the wanted operation.
+                Check_and_print_the_received_ContentMessage(recvString, K, true);
+
+                counter++; // se ok, incrementa
             }
             else if ((requestParts[0] == "get") || (requestParts[0] == "Get") || (requestParts[0] == "GET"))
             {
-
                 // If the command doesn't have the parameter, is not valid
                 if (requestParts.size() < 2)
                 {
@@ -293,24 +323,21 @@ int main()
                 }
 
                 unsigned int targetId = stoi(requestParts[1]);
+
                 if (targetId <= 0)
                 {
                     cout << "ERROR - Not valid identificator, must be an existent id!" << endl;
                     continue; // Not valid parameter.
                 }
-                sendIntegerNumber(sd, GET_REQUEST_TYPE); // We want to download a post.
-                sendIntegerNumber(sd, targetId);         // Send the id of the wanted post.
-                                                         /*
-                                                         string messageGetted = receiveString(sd);
-                                                         if(messageGetted == "err - err - err\n\n"){
-                                                             cout << "The message doesn't exists"<< endl;
-                                                         }else{
-                                                             cout << "\n"
-                                                                 << messageGetted << endl;
-                                                         }
-                                                         */
-                cout << "\n"
-                     << receiveString(sd) << endl;
+
+                string recvString = to_string(GET_REQUEST_TYPE) + "-" + to_string(targetId) + "-" + to_string(counter + 1);
+                recvString = packContentMessage(recvString, K);
+                sendString(sd, recvString, K); // CONTENT MESSAGE - Send the wanted operation.
+
+                recvString = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the wanted operation.
+                Check_and_print_the_received_ContentMessage(recvString, K, true);
+
+                counter++; // se ok, incrementa
             }
             else if ((requestParts[0] == "add") || (requestParts[0] == "Add") || (requestParts[0] == "ADD"))
             {
@@ -336,12 +363,14 @@ int main()
                         body = insertLineFromKeyboard();
                     } while (body.length() == 0);
 
-                    sendIntegerNumber(sd, ADD_REQUEST_TYPE); // We want to add a new post.
-                    sendString(sd, title + '-' + body);      // Send the content of the post.
-                    int res = receiveIntegerNumber(sd);      // Receive the result of the operation.
-                    if (res == 1)
+                    string recvString = to_string(ADD_REQUEST_TYPE) + "-" + title + '|' + body + "-" + to_string(counter + 1);
+                    recvString = packContentMessage(recvString, K);
+                    sendString(sd, recvString, K); // CONTENT MESSAGE - Send the wanted operation.
+
+                    if (receiveIntegerNumber(sd) == 1) // INTEGER NUMBER - Receive the result of the ADD operation.
                     {
                         cout << "Ok the post has been inserted!" << endl;
+                        counter++;
                     }
                     else
                     {

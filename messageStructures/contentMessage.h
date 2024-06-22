@@ -2,14 +2,14 @@
 #include <string>
 #include <sstream>
 #include <vector>
+
 using namespace std;
 
 #ifndef CONTENTMESSAGE_H
 #define CONTENTMESSAGE_H
 
-
-
-class ContentMessage {
+class ContentMessage
+{
 private:
     size_t IVdim;
     size_t Cdim;
@@ -23,7 +23,8 @@ public:
     ContentMessage() {}
 
     // Costruttore parametrizzato
-    ContentMessage(const string& IV, const string& C, const string& HMAC) {
+    ContentMessage(const string &IV, const string &C, const string &HMAC)
+    {
         this->IV = IV;
         this->C = C;
         this->HMAC = HMAC;
@@ -33,7 +34,8 @@ public:
     }
 
     // Costruttore parametrizzato
-    ContentMessage( string& IV,  string& C,  string& HMAC) {
+    ContentMessage(string &IV, string &C, string &HMAC)
+    {
         this->IV = IV;
         this->C = C;
         this->HMAC = HMAC;
@@ -43,64 +45,83 @@ public:
     }
 
     // Getter e Setter per IVdim
-    size_t getIVdim() const {
+    size_t getIVdim() const
+    {
         return IVdim;
     }
 
-    void setIVdim(size_t IVdim) {
+    void setIVdim(size_t IVdim)
+    {
         this->IVdim = IVdim;
     }
 
     // Getter e Setter per Cdim
-    size_t getCdim() const {
+    size_t getCdim() const
+    {
         return Cdim;
     }
 
-    void setCdim(size_t Cdim) {
+    void setCdim(size_t Cdim)
+    {
         this->Cdim = Cdim;
     }
 
     // Getter e Setter per HMACdim
-    size_t getHMACdim() const {
+    size_t getHMACdim() const
+    {
         return HMACdim;
     }
 
-    void setHMACdim(size_t HMACdim) {
+    void setHMACdim(size_t HMACdim)
+    {
         this->HMACdim = HMACdim;
     }
 
     // Getter e Setter per IV
-    string getIV() const {
+    string getIV() const
+    {
         return IV;
     }
 
-    void setIV(const string& IV) {
+    void setIV(const string &IV)
+    {
         this->IV = IV;
         this->IVdim = IV.size();
     }
 
+    void setRandomIV()
+    {
+        const string IV = generateRandomKey(16);
+        this->setIV(IV);
+    }
+
     // Getter e Setter per C
-    string getC() const {
+    string getC() const
+    {
         return C;
     }
 
-    void setC(const string& C) {
+    void setC(const string &C)
+    {
         this->C = C;
         this->Cdim = C.size();
     }
 
     // Getter e Setter per HMAC
-    string getHMAC() const {
+    string getHMAC() const
+    {
         return HMAC;
     }
 
-    void setHMAC(const string& HMAC) {
+    void setHMAC(const string &HMAC)
+    {
         this->HMAC = HMAC;
         this->HMACdim = HMAC.size();
     }
 
     // Metodo per concatenare i campi in una stringa
-    void concatenateFields(string &str) const {
+    void concatenateFields(string &str) const
+    {
         ostringstream oss;
         const char delimiter = '-';
         oss << IVdim << delimiter
@@ -113,7 +134,8 @@ public:
     }
 
     // Metodo per deconcatenare i campi da una stringa
-    void deconcatenateFields(vector<string> &result, const string &input) const {
+    void deconcatenateFields(vector<string> &result, const string &input) const
+    {
         result.clear();
         istringstream iss(input);
         string part;
@@ -135,10 +157,12 @@ public:
     }
 
     // Metodo per deconcatenare e assegnare i campi da una stringa
-    void deconcatenateAndAssign(const string &input) {
+    void deconcatenateAndAssign(const string &input)
+    {
         vector<string> stringVector;
         this->deconcatenateFields(stringVector, input);
-        if (stringVector.size() == 3) {
+        if (stringVector.size() == 3)
+        {
             this->IV = stringVector[0];
             this->C = stringVector[1];
             this->HMAC = stringVector[2];

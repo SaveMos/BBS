@@ -1,16 +1,11 @@
+#include <mutex>
+#include <thread>
+
+#include "messagePackingLibrary.h"
 #include "communicationLibrary.h"
 #include "configuration.h"
 #include "utilityFile.h"
 #include "connectionInformation.h"
-#include "security.h"
-#include <openssl/evp.h>
-#include <mutex>
-#include <vector>
-#include <thread>
-#include <iostream>
-#include "messageStructures/simpleMessage.h"
-#include "messageStructures/contentMessage.h"
-#include "messageStructures/RSAEMessage.h"
 
 #define MAXIMUM_NUMBER_OF_THREAD 100
 #define MAXIMUM_REQUEST_NUMBER 1000
@@ -175,8 +170,8 @@ bool checkUserList(string inputNickname, userBBS &us)
 {
     bool res = false;
     mutexUserList.lock();
-    const uint64_t size = userList.size();
-    for (uint64_t i = 0; i < size; i++)
+    const size_t size = userList.size();
+    for (size_t i = 0; i < size; i++)
     {
         if (userList[i].getNickname() == inputNickname)
         {
@@ -193,11 +188,45 @@ bool checkUserList(string inputNickname)
 {
     bool res = false;
     mutexUserList.lock();
-    const uint64_t size = userList.size();
-    for (uint64_t i = 0; i < size; i++)
+    const size_t size = userList.size();
+    for (size_t i = 0; i < size; i++)
     {
         if (userList[i].getNickname() == inputNickname)
         {
+            res = true;
+            break;
+        }
+    }
+    mutexUserList.unlock();
+    return res;
+}
+
+uint64_t getUserCounter(uint64_t index)
+{
+    uint64_t res;
+    mutexUserList.lock();
+    res = userList[index].getCounter();
+    mutexUserList.unlock();
+    return res;
+}
+
+void IncrementUserCounter(uint64_t index)
+{
+    mutexUserList.lock();
+    userList[index].incrCounter(1);
+    mutexUserList.unlock();
+}
+bool checkUserListIndex(string inputNickname, uint64_t index)
+{
+    bool res = false;
+    index = 0;
+    mutexUserList.lock();
+    const size_t size = userList.size();
+    for (size_t i = 0; i < size; i++)
+    {
+        if (userList[i].getNickname() == inputNickname)
+        {
+            index = i;
             res = true;
             break;
         }
@@ -276,7 +305,7 @@ void periodicSnaphot()
     }
 }
 
-uint8_t checkUserConnectionInfoAtLoginOrRegistration(string &nickname)
+uint8_t checkUserConnectionInfoAtLoginOrRegistration(string nickname)
 {
     connectionInformation conn;
 
@@ -300,267 +329,254 @@ uint8_t checkUserConnectionInfoAtLoginOrRegistration(string &nickname)
 
 void registrationProcedure(int socketDescriptor, bool &result, string &status, string &nickName, string K)
 {
-    string emailRecv; //= receiveString(socketDescriptor); // Receive the email from the client.
-    // cout << emailRecv << endl;
-    string nickNameRecv; // = receiveString(socketDescriptor); // Receive the nickname from the client.
-    // cout << nickNameRecv << endl;
-    string pwdRecv; // = computeHash(receiveString(socketDescriptor)); // Receive the clear password from the client; and immediately compute the hash.
-    // cout << pwdRecv << endl;
-    string pwdClear;
     bool valid = false;
-
+    string req;
+    userBBS ut;
     do
     {
         // Receive the encrypted message and HMAC from the client
-        std::string encryptedMessage = receiveString(socketDescriptor);
-        std::string receivedHmac = receiveString(socketDescriptor);
+        req = receiveString(socketDescriptor, K);
 
-        // cout<<"encrypted email received from the client: "<<encryptedMessage<<endl;
-        //  Decript the message with AES
-        std::vector<unsigned char> encryptedMessageVec(encryptedMessage.begin(), encryptedMessage.end());
-        emailRecv = decrypt_AES(encryptedMessageVec, aesKey);
-
-        cout << "enc email: " << std::string(encryptedMessage.begin(), encryptedMessage.end()) << endl;
-
-        // Verify HMAC of encrypted message
-        const EVP_MD *evp_md = EVP_sha256();
-        std::string calculatedHmac = calculateHMAC(aesKey, std::string(encryptedMessage.begin(), encryptedMessage.end()), evp_md);
-
-        cout << "calculatedHmac: " << calculatedHmac << "\n"
-             << "receivedHmac: " << receivedHmac << endl;
-
-        if (calculatedHmac != receivedHmac)
+        ContentMessage msg;
+        if (!verifyContentMessageHMAC(req, msg)) // Verify the HMAC of the received message.
         {
-            throw std::runtime_error("Error: HMAC doesn't correspond, the message could have been alterated");
+            // Not valid HMAC.
+            // CLose the connection
         }
 
-        // emailRecv = receiveString(socketDescriptor); // Receive the email from the client.
-        cout << emailRecv << endl;
+        req = ContentMessageGetContent(msg, K); // Extract the content.
+        ut.deconcatenateAndAssign(req);         // Extract the user info.
+        ut.setCounter(0);
+        status = "";
 
-        if (!checkEmailFormat(emailRecv))
+        result = true;
+
+        if (!checkEmailFormat(ut.getEmail()))
         {
             result = false;
-            status = "ERROR - Wrong email format";
+            status += "ERROR - Wrong email format" + '\n';
         }
-        else if (checkUserEmail(emailRecv))
+
+        if (checkUserEmail(ut.getEmail()))
         {
             result = false;
-            status = "ERROR - This email already exists";
+            status += "ERROR - This email already exists" + '\n';
         }
-        else
+
+        if (ut.getNickname().length() < 3)
+        {
+            result = false;
+            status += "ERROR - Nickname must be at least of 3 characters" + '\n';
+        }
+
+        if (ut.getPasswordDigest().length() < 5)
+        {
+            result = false;
+            status += "ERROR - Password must be at least of 5 characters" + '\n';
+        }
+
+        if (checkUserList(ut.getNickname())) // Check if the nickname have already been used.
+        {
+            result = false;
+            status += "ERROR - This nickname already exists" + '\n';
+        }
+
+        if (result)
         {
             valid = true;
             status = "ok";
         }
 
-        sendString(socketDescriptor, status);
+        sendString(socketDescriptor, status, K);
 
     } while (!valid);
 
-    valid = false;
+    // -------------------CHALLENGE -------------------------------
 
-    do
+    string sendReq = to_string(abs(generate_secure_random_int()));
+    req = packContentMessage(req, K);
+    sendString(socketDescriptor, req, K); // CONTENT MESSAGE -Send the challenge.
+
+    string recvReq = receiveString(socketDescriptor, K); // CONTENT MESSAGE -Receive the challenge.
+
+    if (sendReq == recvReq)
     {
-        nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
-        cout << nickNameRecv << endl;
+        // Challenge win!
+        ut.setSalt(generateRandomSalt());
+        ut.setPasswordDigest(computeHash(ut.getPasswordDigest(), ut.getSalt()));
 
-        if (nickNameRecv.length() < 3)
-        {
-            result = false;
-            status = "ERROR - Nickname must be at least of 3 characters";
-        }
-        else if (checkUserList(nickNameRecv))
-        {
-            result = false;
-            status = "ERROR - This nickname already exists";
-        }
-        else
-        {
-            valid = true;
-            status = "ok";
-        }
+        // We can insert the user in the list.
+        mutexUserList.lock();
+        userList.push_back(ut);
+        mutexUserList.unlock();
 
-        sendString(socketDescriptor, status);
+        connectionInformation c(socketDescriptor, ut.getNickname(), getCurrentTimestamp(), getCurrentTimestamp(), true);
+        mutexConnections.lock();
+        connections.push_back(c);
+        mutexConnections.unlock();
 
-    } while (!valid);
-
-    valid = false;
-
-    do
+        result = true;
+        status = "User registered!";
+        sendIntegerNumber(socketDescriptor, 1); // INTEGER MESSAGE - Send the result of the login/registration process.
+        nickName = ut.getNickname();            // Save the nickname for later.
+        return;
+    }
+    else
     {
-        pwdClear = receiveString(socketDescriptor);
-        pwdRecv = computeHash(pwdClear); // Receive the clear password from the client; and immediately compute the hash.
-        cout << pwdRecv << endl;
-
-        if (pwdClear.length() < 5)
-        {
-            result = false;
-            status = "ERROR - The password must be at least of 5 characters";
-            sendString(socketDescriptor, status);
-        }
-        else
-        {
-            valid = true;
-            status = "ok";
-            sendString(socketDescriptor, status);
-
-            // Check if the nickname have already been used.
-            int sendChallenge = generate_secure_random_int();
-            int recvChallenge; // The challenge.
-
-            sendChallenge = abs(sendChallenge);
-            sendIntegerNumber(socketDescriptor, sendChallenge); // Send the challenge.
-
-            recvChallenge = receiveIntegerNumber(socketDescriptor); // Receive the challenge.
-
-            if (recvChallenge == sendChallenge)
-            {
-                // Challenge win!
-                userBBS userRecv(nickNameRecv, generateRandomSalt(4), "", emailRecv);
-                userRecv.setPasswordDigest(pwdRecv);
-
-                mutexUserList.lock();
-                userList.push_back(userRecv);
-                mutexUserList.unlock();
-
-                connectionInformation c(socketDescriptor, nickNameRecv, getCurrentTimestamp(), getCurrentTimestamp(), true);
-
-                mutexConnections.lock();
-                connections.push_back(c);
-                mutexConnections.unlock();
-
-                result = true;
-                status = "User registered!";
-                sendIntegerNumber(socketDescriptor, 1);
-                nickName = nickNameRecv; // save the nickname for later.
-                return;
-            }
-            else
-            {
-                cout << "challenge not valid, client disconnected" << endl;
-                sendIntegerNumber(socketDescriptor, -1);
-                // close(socketDescriptor);
-                mutexConnections.lock();
-                refreshConnectionInformation(nickNameRecv, socketDescriptor, "logout");
-                mutexConnections.unlock();
-                return;
-            }
-        }
-
-    } while (!valid);
-
-    result = false;
-    status = "Something went wrong!";
-    sendIntegerNumber(socketDescriptor, 0);
+        result = false;
+        sendIntegerNumber(socketDescriptor, -1); // INTEGER MESSAGE - Send the result of the login/registration process.
+        close(socketDescriptor);
+        return;
+    }
 }
 
 void loginProcedure(int socketDescriptor, bool &result, string &status, string &nickName, string K)
 {
-    string nickNameRecv, pwdRecv; // Receiving variables.
-    userBBS usr;
-    bool res = false;
-    bool valid = false;
-
+    string req;
+    userBBS ut;
+    ContentMessage msg;
+    vector<string> recvStrings;
     do
     {
-        nickNameRecv = receiveString(socketDescriptor); // Receive the nickname from the client.
+        recvStrings.clear();
+        result = true;
+        status = "";
+        // Receive the encrypted message and HMAC from the client
+        req = receiveString(socketDescriptor, K); // CONTENT MESSAGE - Sending credentials.
 
-        if (nickNameRecv.length() == 0)
+        if (!verifyContentMessageHMAC(req, msg)) // Verify the HMAC of the received message.
         {
+            // Not valid HMAC.
+            close(socketDescriptor);
             result = false;
-            status = "ERROR - Empty nickname!";
+            status = "No HMAC";
+            return;
         }
-        else if (!checkUserList(nickNameRecv, usr))
+
+        req = ContentMessageGetContent(msg, K); // Extract the content.
+
+        recvStrings = divideString(req);
+
+        if (recvStrings[0].length() < 3)
         {
             result = false;
-            status = "ERROR - This nickname doesn't exists!";
+            status += "ERROR - Nickname must be at least of 3 characters" + '\n';
+        }
+
+        if (recvStrings[1].length() < 5)
+        {
+            result = false;
+            status += "ERROR - Password must be at least of 5 characters" + '\n';
+        }
+
+        if (!checkUserList(recvStrings[0], ut)) // Check if the nickname have already been used.
+        {
+            result = false;
+            status += "ERROR - This user does not exist" + '\n';
         }
         else
         {
-            valid = true;
-            status = "ok";
+            if (ut.getPasswordDigest() != computeHash(recvStrings[1], ut.getSalt()))
+            {
+                result = false;
+                status += "ERROR - Wrong password!" + '\n';
+            }
+            else
+            {
+                const uint8_t connCheck = checkUserConnectionInfoAtLoginOrRegistration(ut.getNickname());
+                if (connCheck == 1)
+                {
+                    result = false;
+                    status += "ERROR - The user is already logged in!" + '\n';
+                }
+            }
         }
 
-        sendString(socketDescriptor, status);
-
-    } while (!valid);
-
-    valid = false;
-
-    do
-    {
-        string pwd = receiveString(socketDescriptor);
-        pwdRecv = computeHash(pwd); // Receive the clear password from the client; and immediately compute the hash.
-
-        if (pwdRecv.length() == 0)
+        if (result)
         {
-            result = false;
-            status = "ERROR - Empty password!";
-            sendString(socketDescriptor, status);
-        }
-        else if (usr.getPasswordDigest() != pwdRecv)
-        {
-            result = false;
-            status = "ERROR - Wrong password!";
-            sendString(socketDescriptor, status);
-        }
-        else
-        {
-            valid = true;
-            status = "ok";
-            sendString(socketDescriptor, status);
+            status = "ok-" + to_string(ut.getCounter());
+            sendString(socketDescriptor, status, K); // CONTENT MESSAGE - Send the result of the login operation.
 
             // if the password of the choosen nickname is correct.
             mutexConnections.lock();
-            refreshConnectionInformation(nickNameRecv, socketDescriptor, "login");
+            refreshConnectionInformation(ut.getNickname(), socketDescriptor, "login");
             mutexConnections.unlock();
 
             result = true;
             status = "Login ok!";
-            sendIntegerNumber(socketDescriptor, 1);
+            sendIntegerNumber(socketDescriptor, 1); // INTEGER MESSAGE - Send the result of the login/registration process.
 
             nickName = nickNameRecv;
-            return;
+        }
+        else
+        {
+            sendString(socketDescriptor, status, K); // CONTENT MESSAGE - Send the result of the login operation.
         }
 
-    } while (!valid);
-
-    result = false;
-    status = "Something went wrong!";
-    sendIntegerNumber(socketDescriptor, 0);
+    } while (!result);
 }
 
 void BBSsession(int socketDescriptor, string nickNameRecv, string K)
 {
-    int requestType = 0;
+    string req;
+    ContentMessage msg;
+    vector<string> requests;
+    string content;
+    int requestType;
+
+    const uint64_t userIndex = checkUserListIndex(nickNameRecv);
+
+    uint64_t counterCurrent = getUserCounter(userIndex);
+
     while (true)
     {
-        requestType = receiveIntegerNumber(socketDescriptor); // Get the request type from the client.
+        req = receiveString(socketDescriptor, K); // Get the request type from the client.
 
-        if (requestType == LIST_REQUEST_TYPE)
+        msg.deconcatenateAndAssign(req);
+        content = ContentMessageGetContent(msg);
+        requests = divideString(content, '-');
+
+        if (requests[0] == "logout")
         {
-            sendString(socketDescriptor, List(receiveIntegerNumber(socketDescriptor)));
-        }
-        else if (requestType == GET_REQUEST_TYPE)
-        {
-            sendString(socketDescriptor, Get(receiveIntegerNumber(socketDescriptor)).toListed());
-        }
-        else if (requestType == ADD_REQUEST_TYPE)
-        {
-            vector<string> requestParts = divideString(receiveString(socketDescriptor), '-');
-            cout << "nickname: " << nickNameRecv << endl;
-            Add(requestParts[0], nickNameRecv, requestParts[1]);
-            sendIntegerNumber(socketDescriptor, 1);
-        }
-        else if (requestType == LOGOUT_REQUEST_TYPE)
-        {
-            mutexConnections.lock();
-            refreshConnectionInformation(nickNameRecv, socketDescriptor, "logout");
-            mutexConnections.unlock();
+            uint64_t counterMsg = stoull(requests[1]);
+            if (counterMsg == counterCurrent + 1)
+            {
+                mutexConnections.lock();
+                refreshConnectionInformation(nickNameRecv, socketDescriptor, "logout");
+                mutexConnections.unlock();
+
+                IncrementUserCounter(userIndex);
+                counterCurrent++;
+            }
             break;
         }
-    }
+        else
+        {
+            if (stoull(requests[2]) == counterCurrent + 1)
+            {
+                // If the counter is correct
+                requestType = stoi(requests[0]);
 
+                if (requestType == LIST_REQUEST_TYPE)
+                {
+                    sendString(socketDescriptor, List(stoi(requests[1])));
+                }
+                else if (requestType == GET_REQUEST_TYPE)
+                {
+                    sendString(socketDescriptor, Get(stoi(requests[1])).toListed());
+                }
+                else if (requestType == ADD_REQUEST_TYPE)
+                {
+                    vector<string> requestParts = divideString(receiveString(socketDescriptor), '|');
+                    Add(requestParts[0], nickNameRecv, requestParts[1]);
+                    sendIntegerNumber(socketDescriptor, 1); // INTEGER NUMBER - Send the result of the ADD operation.
+                }
+
+                IncrementUserCounter(userIndex);
+                counterCurrent++;
+            }
+        }
+    }
     doSnapshot();
 }
 
@@ -570,8 +586,6 @@ void threadServerCode(int new_sd)
     bool howItEnded = false;     // It becomes true if the procedure goes fine.
     string status = "";          // Explain the result of the procedure.
 
-   
-    //cout<<"string received from the client"<<receiveString(new_sd , K)<<endl;
     string recvReq = receiveString(new_sd);
     SimpleMessage simpleMsg;
     simpleMsg.deconcatenateAndAssign(recvReq);
@@ -588,8 +602,7 @@ void threadServerCode(int new_sd)
     RSAEMessage messageRSAE;
     messageRSAE.setPublicKey(Tpubkey);
     messageRSAE.computeDigitalFirm(R, convertStringToPrivateEVP_PKEY(Tprivkey));
-    messageRSAE.setCert("Certificato");
-
+    messageRSAE.setCert("Certificato Server BBS");
     messageRSAE.concatenateFields(recvReq);
 
     sendString(new_sd, recvReq); // Send the RSAE Message
@@ -597,9 +610,6 @@ void threadServerCode(int new_sd)
     recvReq = receiveString(new_sd);
 
     const string K = rsa_decrypt(recvReq, convertStringToPrivateEVP_PKEY(Tprivkey));
-
-   
-
     // ------------------ END RSAE ---------------------------
 
     if (requestAndR[0] == "reg") // Registration.

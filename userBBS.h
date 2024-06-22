@@ -1,6 +1,6 @@
 #include <string>
+#include <vector>
 #include <sstream>
-
 using namespace std;
 
 #ifndef USERBBS_H
@@ -13,18 +13,20 @@ private:
     string email;
     string salt;
     string passwordDigest;
+    uint64_t counter;
 
 public:
     // Costruttore di default
-    userBBS() {}
+    userBBS() : counter(0) {}
 
-    // Costruttore che inizializza nickname e passwordDigest
-    userBBS(string newNickname, string salt, string newPasswordDigest, string newEmail)
+    // Costruttore che inizializza nickname, salt, passwordDigest, email e counter
+    userBBS(string newNickname, string salt, string newPasswordDigest, string newEmail, uint64_t newCounter = 0)
     {
         this->nickname = newNickname;
         this->email = newEmail;
         this->salt = salt;
         this->passwordDigest = newPasswordDigest;
+        this->counter = newCounter;
     }
 
     // Metodo set per impostare il valore di nickname
@@ -49,6 +51,11 @@ public:
         this->salt = salt;
     }
 
+    void setCounter(uint64_t c)
+    {
+        this->counter = c;
+    }
+
     // Metodo get per ottenere il valore di nickname
     string getNickname()
     {
@@ -70,18 +77,29 @@ public:
         return this->salt;
     }
 
+    uint64_t getCounter()
+    {
+        return this->counter;
+    }
+
+    void incrCounter(uint64_t howMuch = 1)
+    {
+        this->counter += howMuch;
+    }
+
     void concatenateFields(string &str)
     {
         ostringstream oss;
-        const char delimeter = '-';
-        oss << this->nickname.length() << delimeter
-            << this->email.length() << delimeter
-            << this->salt.length() << delimeter
-            << this->passwordDigest.length() << delimeter
+        const char delimiter = '-';
+        oss << this->nickname.length() << delimiter
+            << this->email.length() << delimiter
+            << this->salt.length() << delimiter
+            << this->passwordDigest.length() << delimiter
             << this->nickname
             << this->email
             << this->salt
-            << this->passwordDigest;
+            << this->passwordDigest
+            << delimiter << this->counter;
         str = oss.str();
     }
 
@@ -94,12 +112,13 @@ public:
 
         vector<string> stringVector;
         this->deconcatenateFields(stringVector, input);
-        if (stringVector.size() == 4)
+        if (stringVector.size() == 5)
         {
             this->nickname = stringVector[0];
             this->email = stringVector[1];
             this->salt = stringVector[2];
             this->passwordDigest = stringVector[3];
+            this->counter = stoull(stringVector[4]);
         }
     }
 
@@ -128,8 +147,12 @@ public:
         result.push_back(input.substr(iss.tellg(), lengthSalt));
         iss.seekg(iss.tellg() + streampos(lengthSalt));
         result.push_back(input.substr(iss.tellg(), lengthPasswordDigest));
-    }
+        iss.seekg(iss.tellg() + streampos(lengthPasswordDigest));
 
+        // Read the counter
+        getline(iss, part, '-');
+        result.push_back(part);
+    }
 };
 
 #endif

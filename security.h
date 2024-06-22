@@ -84,7 +84,6 @@ std::string computeHash(string input, string salt = "") {
     return ss.str();
 }
 
-
 std::string calculateHMAC(string key, string message, const EVP_MD *evp_md)
 {
     EVP_PKEY *pkey = nullptr;
@@ -162,6 +161,10 @@ std::string calculateHMAC(string key, string message, const EVP_MD *evp_md)
 std::string calculateHMAC(string key, string message){
     const EVP_MD *evp_md = EVP_sha256();
     return calculateHMAC(key, message , evp_md);
+}
+
+bool verifyHMAC(string key, string message , string HMACtoVerify){
+    return (calculateHMAC(key , message) == HMACtoVerify)
 }
 
 bool checkSaltedPasswordDigest(string inputPassword, string passwordDigest,  string salt = "")
@@ -242,6 +245,11 @@ std::vector<unsigned char> encrypt_AES(const std::string &plaintext, const std::
 
     EVP_CIPHER_CTX_free(ctx);
     return ciphertext;
+}
+
+
+std::string decrypt_AES(const string &ciphertext, const std::string &key){
+    return decrypt_AES(stringToVectorUnsignedChar(ciphertext) , key);
 }
 
 // Funzione per decifrare una stringa
