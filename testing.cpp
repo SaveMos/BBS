@@ -158,9 +158,13 @@ int main(int argc, char *argv[])
         cout << "Tutto OK!" << endl;
     }
 
+    string statusLocal = "ERROR-";
+    string as = "Nickname must be at least of 3 characters\n";
+    statusLocal = statusLocal + as;
+    as = "Password must be at least of 5 characters\n";
+    statusLocal = statusLocal + as;
 
-    
-
+    cout<<"statusLocal: "<<statusLocal<<endl;
 
 
 
