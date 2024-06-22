@@ -86,6 +86,7 @@ int main()
     if (requestString == "reg")
     {
 
+        string status;
         string req = "reg-" + to_string(R);
         helloMsg.setContent(req);
         string reqLength;
@@ -94,34 +95,48 @@ int main()
         sendString(sd, reqLength); // I want to registrate, so i send 0.
         Client_RSAE(sd, R, K);
         // RSAE ended ----------------------
+        do{
+            cout << "Insert email" << endl;
+            cin >> p_mail;
+            cout << "Insert nickname" << endl;
+            cin >> p_nick;
+            cout << "Insert password" << endl;
+            cin >> p_pwd;
 
-        cout << "Insert email" << endl;
-        cin >> p_mail;
-        cout << "Insert nickname" << endl;
-        cin >> p_nick;
-        cout << "Insert password" << endl;
-        cin >> p_pwd;
+            const string IV = generateRandomKey(16);
 
-        const string IV = generateRandomKey(16);
+            userBBS ut;
+            ut.setNickname(p_nick);
+            ut.setSalt(generateRandomSalt(4));
+            ut.setEmail(p_mail);
+            ut.setPasswordDigest(computeHash(p_pwd , ut.getSalt()));
 
-        userBBS ut;
-        ut.setNickname(p_nick);
-        ut.setSalt(generateRandomSalt(4));
-        ut.setEmail(p_mail);
-        ut.setPasswordDigest(computeHash(p_pwd , ut.getSalt()));
+            string recvString;
+            ut.concatenateFields(recvString);
+            
+            ContentMessage contentMsg;
+            contentMsg.setIV(IV);
+            contentMsg.setC(vectorUnsignedCharToString(encrypt_AES(recvString , K)));
+            contentMsg.setHMAC(calculateHMAC(contentMsg.getIV(),contentMsg.getC()));
+            contentMsg.concatenateFields(reqLength);
 
-        string recvString;
-        ut.concatenateFields(recvString);
-        
-        ContentMessage contentMsg;
-        contentMsg.setIV(IV);
-        contentMsg.setC(vectorUnsignedCharToString(encrypt_AES(recvString , K)));
-        contentMsg.setHMAC(calculateHMAC(contentMsg.getIV(),contentMsg.getC()));
-        contentMsg.concatenateFields(reqLength);
+            sendString(sd , reqLength , K); // Sending credentials.
 
-        sendString(sd , reqLength , K); // Sending credentials.
+            //receive the result of the registration operazion
+            status = receiveString(sd, K);
 
-        // DA FARE DO WHILE
+            if (status != "ok")
+            {
+
+                cout << status << endl;
+            }
+            else
+            {
+                valid = true;
+            }
+
+        }while(!valid);
+
 
         // --------------- CHALLENGE --------------------------------------------
         reqLength = receiveString(sd , K);
@@ -138,6 +153,8 @@ int main()
     else if (requestString == "log")
     {
 
+        bool valid = false;
+        string status;
         string req = "log-" + to_string(R);
         helloMsg.setContent(req);
         string reqLength;
@@ -151,28 +168,24 @@ int main()
         {
             cout << "Insert nickname" << endl;
             cin >> p_nick;
-            sendString(sd, p_nick); // Send the nickname.
-
-            status = receiveString(sd);
-            if (status != "ok")
-            {
-
-                cout << status << endl;
-            }
-            else
-            {
-                valid = true;
-            }
-
-        } while (!valid);
-
-        valid = false;
-
-        do
-        {
             cout << "Insert password" << endl;
             cin >> p_pwd;
-            sendString(sd, p_pwd); // Send the password.
+
+            const string IV = generateRandomKey(16);
+
+            string recvString = p_nick+p_pwd;
+            
+            ContentMessage contentMsg;
+            contentMsg.setIV(IV);
+            contentMsg.setC(vectorUnsignedCharToString(encrypt_AES(recvString , K)));
+            contentMsg.setHMAC(calculateHMAC(contentMsg.getIV(),contentMsg.getC()));
+            contentMsg.concatenateFields(reqLength);
+
+            sendString(sd , reqLength , K); // Sending credentials.
+
+            //receive the result of the registration operazion
+            status = receiveString(sd, K);
+
 
             status = receiveString(sd);
             if (status != "ok")
@@ -186,6 +199,8 @@ int main()
             }
 
         } while (!valid);
+
+    
     }
 
     res = receiveIntegerNumber(sd); // Receive the result of the login/registration process.
