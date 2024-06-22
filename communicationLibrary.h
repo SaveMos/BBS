@@ -43,7 +43,7 @@ bool sendString(int socketDescriptor, string message) {
 
 // Funzione per inviare una stringa tramite un socket
 bool sendString(int socketDescriptor, string message, string K) {
-    string cipher = encrypt_AES(message , K);
+    string cipher = vectorUnsignedCharToString(encrypt_AES(message , K));
     return sendString(socketDescriptor , cipher);
 }
 
@@ -74,7 +74,7 @@ std::string receiveString(int socketDescriptor) {
 
 // Funzione per ricevere una stringa tramite un socket
 std::string receiveString(int socketDescriptor, string K) {
-    return decrypt_AES(vectorUnsignedCharToString(receiveString(socketDescriptor)), K);
+    return decrypt_AES(stringToUnsignedCharVector(receiveString(socketDescriptor)), K);
 }
 
 

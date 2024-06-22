@@ -115,7 +115,7 @@ int main()
         
         ContentMessage contentMsg;
         contentMsg.setIV(IV);
-        contentMsg.setC(encrypt_AES(recvString , K));
+        contentMsg.setC(vectorUnsignedCharToString(encrypt_AES(recvString , K)));
         contentMsg.setHMAC(calculateHMAC(contentMsg.getIV(),contentMsg.getC()));
         contentMsg.concatenateFields(reqLength);
 

@@ -84,10 +84,6 @@ std::string computeHash(string input, string salt = "") {
     return ss.str();
 }
 
-std::string calculateHMAC(string key, string message){
-    const EVP_MD *evp_md = EVP_sha256();
-    return calculateHMAC(key, message , evp_md);
-}
 
 std::string calculateHMAC(string key, string message, const EVP_MD *evp_md)
 {
@@ -163,7 +159,10 @@ std::string calculateHMAC(string key, string message, const EVP_MD *evp_md)
     return hmac;
 }
 
-
+std::string calculateHMAC(string key, string message){
+    const EVP_MD *evp_md = EVP_sha256();
+    return calculateHMAC(key, message , evp_md);
+}
 
 bool checkSaltedPasswordDigest(string inputPassword, string passwordDigest,  string salt = "")
 {
