@@ -14,29 +14,52 @@ int main(int argc, char *argv[])
 {
     bool global_test = true;
 
-    string plaintext = "Hello, AES!";
+    // ------ AES-256 Testing---------------------------------------
+    string plaintext = "Plaintext";
     string key = "0123456789abcdef0123456789abcdef"; // 32-byte (256-bit) key
-    const string iv = "1234567890abcdef";            // 16-byte (128-bit) IV
+   
     string encryptedMessage, decryptedMessage;
-
-    vector<unsigned char> enc_msg = encrypt_AES(plaintext, key);
-    // cout << "AES Decrypted Message: " << decrypt_AES(enc_msg, key) << endl;
-
+    
+    encryptedMessage = vectorUnsignedCharToString(encrypt_AES(plaintext, key));
+    if (decrypt_AES(encryptedMessage , key) != plaintext)
+    {
+        cout << "AES NON funziona" << endl;
+        global_test = false;
+    }
+  
+    // ------ RSA Testing---------------------------------------
     encryptedMessage = rsa_encrypt(plaintext, loadRSAKey(PUBLIC_KEY_PATH, true));
     decryptedMessage = rsa_decrypt(encryptedMessage, loadRSAKey(PRIVATE_KEY_PATH, false));
-    // cout << "RSA Decrypted Message: " <<  decryptedMessage << endl;
 
+    if(decryptedMessage != plaintext)
+    {
+        cout << "RSA NON funziona" << endl;
+        global_test = false;
+    }
+   
+    // ------ HMAC Testing---------------------------------------
     const EVP_MD *md = EVP_sha256();
-    // cout << "HMAC: " << calculateHMAC(key , plaintext , md) << endl;
-    // plaintext.append("hjjhhjhjhjh");
-    // key = "0123456789abcdef0123456789abcdej";
+    string iv = "1234567890abcdef"; // 16-byte (128-bit) IV
+    string HMAC_original = calculateHMAC(iv , plaintext , md);
+    
+    if(HMAC_original == calculateHMAC(iv , plaintext + " " , md)){
+        cout << "HMAC NON funziona" << endl;
+        global_test = false;
+    }
 
-    const EVP_MD *md1 = EVP_sha256();
-    // cout << "HMAC1: " << calculateHMAC(key , plaintext , md1) << endl;
+    if(HMAC_original == calculateHMAC(iv , " " + plaintext , md)){
+        cout << "HMAC NON funziona" << endl;
+        global_test = false;
+    }
 
-    string ts = "2024-06-20 11:17:03.958";
-    string ta = "2024-06-20 11:17:43.958";
+    if(HMAC_original == calculateHMAC(iv , plaintext + "a" , md)){
+        cout << "HMAC NON funziona" << endl;
+        global_test = false;
+    }
 
+    // ------ Timestamps Testing---------------------------------------
+    const string ts = "2024-06-20 11:17:03.958";
+    const string ta = "2024-06-20 11:17:43.958";
     int num = secondDifference(ts, ta);
 
     if (num != 40)
@@ -53,50 +76,51 @@ int main(int argc, char *argv[])
         global_test = false;
     }
 
-    RSAEMessage mess;
-    string conc, check;
+    // ------ RSAE and Digital Signature Testing---------------------------------------
     int R = 100;
-/*
-    mess.setCert("CERTIFICATOAOOO");
-    mess.setPublicKey(loadRSAKey(true));
-    mess.setDigitalFirm(createDigitalSignature(mess.getPublicKey()))
+    string conc, check, Tpubkey, Tprivkey;
+    RSAEMessage messageRSAE;
 
-    if (!mess.verifyDigitalFirm(R))
+    generateRSAKeyPair(Tpubkey, Tprivkey);
+   
+    messageRSAE.setPublicKey(Tpubkey); 
+    messageRSAE.setCert("Certificato Server BBS");
+    
+    messageRSAE.computeDigitalFirm(R, Tprivkey);
+    if (!messageRSAE.verifyDigitalFirm(R))
     {
-        cout << "La firma digitale NON funziona" << endl;
+        cout << "RSAEMessage - La firma digitale NON funziona" << endl;
         global_test = false;
     }
 
-    mess.concatenateFields(check);
-    mess.deconcatenateAndAssign(check);
-    mess.computeDigitalFirm(R);
+    messageRSAE.concatenateFields(check);
+    messageRSAE.deconcatenateAndAssign(check);
 
-    if (!mess.verifyDigitalFirm(R))
+    messageRSAE.computeDigitalFirm(R, Tprivkey);
+    if (!messageRSAE.verifyDigitalFirm(R))
     {
         cout << "La firma digitale NON funziona" << endl;
         global_test = false;
     }
 
     R = 120;
-
-    if (mess.verifyDigitalFirm(R))
+    if (messageRSAE.verifyDigitalFirm(R))
     {
         cout << "La firma digitale NON funziona" << endl;
         global_test = false;
     }
-    mess.concatenateFields(check);
+    messageRSAE.concatenateFields(check);
+    messageRSAE.deconcatenateAndAssign(check);
 
-    mess.deconcatenateAndAssign(check);
     R = 120;
-    mess.computeDigitalFirm(R);
-
-    if (!mess.verifyDigitalFirm(R))
+    messageRSAE.computeDigitalFirm(R , Tprivkey);
+    if (!messageRSAE.verifyDigitalFirm(R))
     {
         cout << "La firma digitale NON funziona" << endl;
         global_test = false;
     }
 
-    mess.concatenateFields(check);
+    // ------ HASH Testing---------------------------------------
     userBBS user;
     user.setNickname("Pini");
     user.setEmail("pini@gmail.com");
@@ -136,7 +160,7 @@ int main(int argc, char *argv[])
         cout << "La seconda verifica della password utente NON funziona" << endl;
         global_test = false;
     }
-*/
+
     string aes_key = "Pippo";
     string msg = "Pluto";
     string c = vectorUnsignedCharToString(encrypt_AES(msg , aes_key));

@@ -167,13 +167,20 @@ public:
 
     void computeDigitalFirm(int R , EVP_PKEY* privKey){
         const string conc = to_string(R) + this->getPublicKey();
-        this->setDigitalFirm(vectorUnsignedCharToString(createDigitalSignature(conc , privKey)));
-        
+        this->setDigitalFirm(vectorUnsignedCharToString(createDigitalSignature(conc , privKey)));   
+    }
+
+    void computeDigitalFirm(int R , string privKey){
+        this->computeDigitalFirm(R , convertStringToPrivateEVP_PKEY(privKey));
     }
 
     void computeDigitalFirm(uint64_t R, EVP_PKEY* privKey){
         const string conc = to_string(R) + this->getPublicKey();
         this->setDigitalFirm(vectorUnsignedCharToString(createDigitalSignature(conc , privKey)));
+    }
+
+    void computeDigitalFirm(uint64_t R , string privKey){
+        this->computeDigitalFirm(R , convertStringToPrivateEVP_PKEY(privKey));
     }
 
     bool verifyDigitalFirm(int R){
