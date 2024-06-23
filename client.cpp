@@ -20,13 +20,12 @@ void Client_RSAE(int sd, uint64_t R, string K)
 
     messageRSAE.deconcatenateAndAssign(recvReq);
 
-    if (messageRSAE.verifyDigitalFirm(R))
+    if (messageRSAE.verifyDigitalFirm(R) && messageRSAE.verifyCertificateValidity())
     {
-        // Digital signature is ok
+        // Digital signature and certificate is ok
         sendString(sd, rsa_encrypt(K, convertStringToPublicEVP_PKEY(messageRSAE.getPublicKey()))); // Send the crypted key.
     }
     {
-        // Not ok, abort connection
     }
 }
 

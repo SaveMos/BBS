@@ -881,8 +881,8 @@ void threadServerCode(int new_sd)
 
     RSAEMessage messageRSAE;
     messageRSAE.setPublicKey(Tpubkey);
-    messageRSAE.computeDigitalFirm(R, convertStringToPrivateEVP_PKEY(Tprivkey));
-    messageRSAE.setCert("Certificato Server BBS");
+    messageRSAE.computeDigitalFirm(R, loadRSAKey("serverPrivateKey/rsa_privkey.pem" , false));
+    messageRSAE.setCert(loadCertFromPEM("serverPublicKey/cacert.pem"));
     messageRSAE.concatenateFields(recvReq);
 
     sendString(new_sd, recvReq); // Send the RSAE Message

@@ -14,9 +14,9 @@ private:
     size_t PublicKeyDim;
     size_t DigitalFirmDim;
     size_t CertDim;
-    string PublicKey;
+    string PublicKey; // The temporary public key
     string DigitalFirm;
-    string Cert;
+    string Cert; // Certificate of the non-temporary key of the server.
 
 public:
     // Costruttore di default
@@ -78,7 +78,7 @@ public:
         this->PublicKeyDim = PublicKey.size();
     }
 
-    void setPublicKey(EVP_PKEY* kpub)
+    void setPublicKey(EVP_PKEY *kpub)
     {
         this->PublicKey = convertPublicEVP_PKEYToString(kpub);
         this->PublicKeyDim = PublicKey.size();
@@ -103,10 +103,15 @@ public:
         return Cert;
     }
 
-    void setCert(const string &Cert)
+    void setCert(string Cert)
     {
         this->Cert = Cert;
         this->CertDim = Cert.size();
+    }
+
+    void setCert(X509* Cert)
+    {
+        this->setCert(certToString(Cert));
     }
 
     // Metodo per concatenare i campi in una stringa
@@ -162,32 +167,46 @@ public:
         }
     }
 
-    void computeDigitalFirm(int R , EVP_PKEY* privKey){
+    void computeDigitalFirm(int R, EVP_PKEY *privKey)
+    {
         const string conc = to_string(R) + this->getPublicKey();
-        this->setDigitalFirm(vectorUnsignedCharToString(createDigitalSignature(conc , privKey)));   
+        this->setDigitalFirm(vectorUnsignedCharToString(createDigitalSignature(conc, privKey)));
     }
 
-    void computeDigitalFirm(int R , string privKey){
-        this->computeDigitalFirm(R , convertStringToPrivateEVP_PKEY(privKey));
+    void computeDigitalFirm(int R, string privKey)
+    {
+        this->computeDigitalFirm(R, convertStringToPrivateEVP_PKEY(privKey));
     }
 
-    void computeDigitalFirm(uint64_t R, EVP_PKEY* privKey){
+    void computeDigitalFirm(uint64_t R, EVP_PKEY *privKey)
+    {
         const string conc = to_string(R) + this->getPublicKey();
-        this->setDigitalFirm(vectorUnsignedCharToString(createDigitalSignature(conc , privKey)));
+        this->setDigitalFirm(vectorUnsignedCharToString(createDigitalSignature(conc, privKey)));
     }
 
-    void computeDigitalFirm(uint64_t R , string privKey){
-        this->computeDigitalFirm(R , convertStringToPrivateEVP_PKEY(privKey));
+    void computeDigitalFirm(uint64_t R, string privKey)
+    {
+        this->computeDigitalFirm(R, convertStringToPrivateEVP_PKEY(privKey));
     }
 
-    bool verifyDigitalFirm(int R){
+    bool verifyDigitalFirm(int R)
+    {
         const string conc = to_string(R) + this->getPublicKey();
-        return verifyDigitalSignature(conc , this->getDigitalFirm() , convertStringToPublicEVP_PKEY(this->getPublicKey()));
+        return verifyDigitalSignature(conc, this->getDigitalFirm(), this->getPublicKeyFromCert());
     }
 
-    bool verifyDigitalFirm(uint64_t R){
+    bool verifyDigitalFirm(uint64_t R)
+    {
         const string conc = to_string(R) + this->getPublicKey();
-        return verifyDigitalSignature(conc , this->getDigitalFirm() , convertStringToPublicEVP_PKEY(this->getPublicKey()));
+        return verifyDigitalSignature(conc, this->getDigitalFirm(), this->getPublicKeyFromCert());
+    }
+
+    EVP_PKEY* getPublicKeyFromCert(){
+        return extractPublicKeyFromCert(stringToCert(this->getCert()));
+    }
+
+    bool verifyCertificateValidity(){
+        return isCertificateValid(stringToCert(this->getCert()));
     }
 };
 #endif

@@ -5,11 +5,12 @@
 #include <unistd.h>
 
 #include <openssl/sha.h>
-#include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
+#include <openssl/x509.h>
+#include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/hmac.h>
 #include <openssl/bn.h>
@@ -310,7 +311,7 @@ string decrypt_AES(const string &ciphertext, const string &key)
     return decrypt_AES(stringToVectorUnsignedChar(ciphertext), key);
 }
 
-// --------------- RSA Part -----------------------------------------------------------------------------------------------
+// --------------- RSA -----------------------------------------------------------------------------------------------
 
 // Funzione per convertire vector<unsigned char> in EVP_PKEY*
 EVP_PKEY *convertToEVP_PKEY(const vector<unsigned char> &privateKeyVec)
@@ -636,6 +637,161 @@ bool verifyDigitalSignature(const string &message, const string &signature, EVP_
     vector<unsigned char> vec = stringToVectorUnsignedChar(signature);
     return verifyDigitalSignature(message, vec, pkey);
 }
+
+// Funzione per estrarre la chiave pubblica da un certificato X509
+EVP_PKEY *extractPublicKeyFromCert(X509 *cert)
+{
+    if (!cert)
+    {
+        throw std::invalid_argument("Invalid certificate provided!");
+    }
+
+    EVP_PKEY *pubkey = X509_get_pubkey(cert);
+    if (!pubkey)
+    {
+        throw std::runtime_error("Failed to extract public key from certificate!");
+    }
+
+    return pubkey; // Nota: l'oggetto EVP_PKEY restituito deve essere liberato successivamente
+}
+
+// Funzione per verificare se un certificato è associato a una data chiave pubblica
+bool verifyCertWithPublicKey(X509 *cert, EVP_PKEY *public_key)
+{
+    if (!cert || !public_key)
+    {
+        throw std::invalid_argument("Invalid certificate or public key provided for verification!");
+    }
+
+    EVP_PKEY *cert_pubkey = extractPublicKeyFromCert(cert);
+
+// Sopprimere l'avviso di deprecazione per EVP_PKEY_cmp
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    int result = EVP_PKEY_cmp(cert_pubkey, public_key);
+#pragma GCC diagnostic pop
+
+    EVP_PKEY_free(cert_pubkey); // Libera la chiave pubblica estratta
+
+    if (result == 1)
+    {
+        return true;
+    }
+    else if (result == 0)
+    {
+        return false;
+    }
+    else
+    {
+        throw std::runtime_error("Error comparing public keys!");
+    }
+}
+
+// Funzione per caricare un certificato da un file .pem e restituire l'oggetto X509*
+X509 *loadCertFromPEM(const char *cert_path)
+{
+    FILE *file = fopen(cert_path, "r");
+    if (!file)
+    {
+        throw std::runtime_error("Certificate file cannot be opened!");
+    }
+
+    X509 *cert = PEM_read_X509(file, nullptr, nullptr, nullptr);
+    fclose(file);
+
+    if (!cert)
+    {
+        throw std::runtime_error("Certificate cannot be loaded!");
+    }
+
+    return cert;
+}
+
+// Funzione per convertire un oggetto X509* in una stringa PEM
+std::string certToString(X509 *cert)
+{
+    BIO *bio = BIO_new(BIO_s_mem());
+    if (!bio)
+    {
+        throw std::runtime_error("BIO allocation failed!");
+    }
+
+    if (!PEM_write_bio_X509(bio, cert))
+    {
+        BIO_free(bio);
+        throw std::runtime_error("Failed to write certificate to BIO!");
+    }
+
+    char *bio_data;
+    long bio_length = BIO_get_mem_data(bio, &bio_data);
+
+    std::string cert_str(bio_data, bio_length);
+    BIO_free(bio);
+
+    return cert_str;
+}
+
+// Funzione per convertire una stringa PEM in un oggetto X509*
+X509 *stringToCert(const std::string &cert_str)
+{
+    BIO *bio = BIO_new_mem_buf(cert_str.data(), cert_str.size());
+    if (!bio)
+    {
+        throw std::runtime_error("BIO allocation failed!");
+    }
+
+    X509 *cert = PEM_read_bio_X509(bio, nullptr, nullptr, nullptr);
+    BIO_free(bio);
+
+    if (!cert)
+    {
+        throw std::runtime_error("Failed to read certificate from BIO!");
+    }
+
+    return cert;
+}
+
+// Funzione per verificare se un certificato X.509 è ancora valido
+bool isCertificateValid(X509 *cert)
+{
+    if (!cert)
+    {
+        throw std::invalid_argument("Invalid certificate provided!");
+    }
+
+    // Ottieni la data corrente
+    time_t now = time(nullptr);
+
+    // Estrai la data di scadenza dal certificato
+    ASN1_TIME *cert_expiry = X509_get0_notAfter(cert);
+    if (!cert_expiry)
+    {
+        throw std::runtime_error("Failed to extract certificate expiration date!");
+    }
+
+    // Converti ASN1_TIME in struct tm
+    struct tm cert_tm;
+    if (!ASN1_TIME_to_tm(cert_expiry, &cert_tm))
+    {
+        throw std::runtime_error("Failed to convert ASN1_TIME to tm structure!");
+    }
+
+    // Converti la data di scadenza in time_t
+    time_t cert_expiry_time = mktime(&cert_tm);
+
+    // Confronta la data di scadenza con la data corrente
+    if (cert_expiry_time < now)
+    {
+        // Il certificato è scaduto
+        return false;
+    }
+    else
+    {
+        // Il certificato è ancora valido
+        return true;
+    }
+}
+
 // --------------- Generazione Numero Random --------------------------------------------------------------------------------
 
 uint8_t generate_secure_random_8_unsigned_int()
