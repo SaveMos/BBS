@@ -45,7 +45,6 @@ std::string encryptedAesKey;
 std::string aesKey;
 
 
-
 string List(int n)
 {
     string listed = "";
@@ -596,7 +595,7 @@ void registrationProcedure(int socketDescriptor, bool &result, string &status, s
     {
         // Receive the encrypted message and HMAC from the client
         req = receiveString(socketDescriptor, K);
-
+    
         ContentMessage msg;
         if (!verifyContentMessageHMAC(req, msg)) // Verify the HMAC of the received message.
         {
@@ -668,7 +667,7 @@ void registrationProcedure(int socketDescriptor, bool &result, string &status, s
 
     // -------------------CHALLENGE -------------------------------
 
-    string sendReq = to_string(abs(generate_secure_random_int()));   // generate the challenge
+    string sendReq = to_string(generate_secure_random_16_unsigned_int());   // generate the challenge
     sendString(socketDescriptor, packContentMessage(sendReq, K), K); // CONTENT MESSAGE -Send the challenge.
 
     string recvReq = receiveString(socketDescriptor, K); // CONTENT MESSAGE -Receive the challenge.

@@ -22,16 +22,19 @@
 #define COMMUNICATIONLIBRARY_H
 
 // Funzione per inviare una stringa tramite un socket
-bool sendString(int socketDescriptor, string message) {
+bool sendString(int socketDescriptor, string message)
+{
     vector<uint8_t> buffer(message.begin(), message.end()); // Converto la stringa in una sequenza di byte
-    size_t length = buffer.size(); // Calcolo la lunghezza della stringa da inviare.
+    size_t length = buffer.size();                          // Calcolo la lunghezza della stringa da inviare.
     // Invio la lunghezza della stringa
-    if (send(socketDescriptor, &length, sizeof(length), 0) == -1) {
+    if (send(socketDescriptor, &length, sizeof(length), 0) == -1)
+    {
         cerr << "Errore nell'invio della lunghezza della stringa\n";
         return false;
     }
     // Invio i dati della stringa
-    if (send(socketDescriptor, buffer.data(), buffer.size(), 0) == -1) {
+    if (send(socketDescriptor, buffer.data(), buffer.size(), 0) == -1)
+    {
         cerr << "Errore nell'invio dei dati della stringa\n";
         return false;
     }
@@ -39,36 +42,48 @@ bool sendString(int socketDescriptor, string message) {
 }
 
 // Funzione per inviare una stringa tramite un socket
-bool sendString(int socketDescriptor, string message, string K) {
-    string cipher = vectorUnsignedCharToString(encrypt_AES(message , K));
-    return sendString(socketDescriptor , cipher);
+bool sendString(int socketDescriptor, string message, string K)
+{
+    string cipher = vectorUnsignedCharToString(encrypt_AES(message, K));
+    return sendString(socketDescriptor, cipher);
 }
 
 // Funzione per ricevere una stringa tramite un socket
-std::string receiveString(int socketDescriptor) {
+std::string receiveString(int socketDescriptor)
+{
     // Ricevo la lunghezza della stringa
-    size_t length;
-    if (recv(socketDescriptor, &length, sizeof(length), 0) == -1) {
-        std::cerr << "Errore nella ricezione della lunghezza della stringa\n";
-        return "";
+    size_t length = 0;
+    if (recv(socketDescriptor, &length, sizeof(length), 0) < 0)
+    {
+        pthread_exit((void *)NULL); // Not valid received string, the thread will kill itself.
+    }
+
+    if (length == 0)
+    {
+        pthread_exit((void *)NULL);  // Not valid received string, the thread will kill itself.
     }
 
     // Alloco un buffer per ricevere i dati della stringa
     vector<uint8_t> buffer(length);
 
     // Ricevo i dati della stringa
-    if (recv(socketDescriptor, buffer.data(), length, 0) == -1) {
-        std::cerr << "Errore nella ricezione dei dati della stringa\n";
-        return "";
+    if (recv(socketDescriptor, buffer.data(), length, 0) < 0)
+    {
+        pthread_exit((void *)NULL);  // Not valid received string, the thread will kill itself.
     }
 
-    // Converto il buffer in una stringa
-    string message(buffer.begin(), buffer.end());
+    if (length == 0)
+    {
+        pthread_exit((void *)NULL);  // Not valid received string, the thread will kill itself.
+    }
+
+    string message(buffer.begin(), buffer.end());  // Converto il buffer in una stringa.
     return message;
 }
 
 // Funzione per ricevere una stringa tramite un socket
-std::string receiveString(int socketDescriptor, string K) {
+std::string receiveString(int socketDescriptor, string K)
+{
     return decrypt_AES(stringToUnsignedCharVector(receiveString(socketDescriptor)), K);
 }
 
@@ -86,7 +101,7 @@ int receiveIntegerNumber(int sd)
     uint32_t msg = 0;
     if (recv(sd, (void *)&msg, sizeof(uint32_t), 0) < 0)
     {
-        return -1;
+        pthread_exit((void *)NULL); // Not valid received string, the thread will kill itself.
     }
     else
     {

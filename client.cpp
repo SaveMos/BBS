@@ -12,6 +12,11 @@
 
 using namespace std;
 
+void clientSuicide()
+{
+    pthread_exit((void *)NULL);
+}
+
 void Client_RSAE(int sd, uint64_t R, string K)
 {
     RSAEMessage messageRSAE;
@@ -25,7 +30,9 @@ void Client_RSAE(int sd, uint64_t R, string K)
         // Digital signature and certificate is ok
         sendString(sd, rsa_encrypt(K, convertStringToPublicEVP_PKEY(messageRSAE.getPublicKey()))); // Send the crypted key.
     }
+    else
     {
+        clientSuicide();
     }
 }
 
@@ -75,8 +82,7 @@ int main()
 
     if (connect(sd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
-        printf("Errore nella Connessione\n");
-        exit(1);
+        clientSuicide();
     }
 
     cout << "************ BBS *************" << endl;
@@ -130,7 +136,7 @@ int main()
             ut.concatenateFields(req);
 
             req = packContentMessage(req, K);
-        
+
             sendString(sd, req, K); // CONTENT MESSAGE - Send the credentials to the server.
 
             req = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the wanted operation.
@@ -152,7 +158,7 @@ int main()
             else
             {
                 // Not valid HMAC.
-                throw std::runtime_error("Error: HMAC doesn't correspond, the message could have been alterated");
+                clientSuicide();
             }
 
         } while (!valid);
@@ -160,16 +166,16 @@ int main()
         // --------------- CHALLENGE --------------------------------------------
         req = receiveString(sd, K); // CONTENT MESSAGE - Receive the challenge.
         ContentMessage msg;
-        if (verifyContentMessageHMAC(req , msg))
+        if (verifyContentMessageHMAC(req, msg))
         {
-            cout << "Received challenge: " << ContentMessageGetContent(msg , K) << endl; // Print the challenge.
+            cout << "Received challenge: " << ContentMessageGetContent(msg, K) << endl; // Print the challenge.
             cout << "Send the same value to the server" << endl;
             cin >> req;
 
             sendString(sd, packContentMessage(req, K), K); // CONTENT MESSAGE - Send the response to the challenge.
         }
         {
-            // The client muore.
+            clientSuicide();
         }
         // --------------- FINE CHALLENGE --------------------------------------------
     }
@@ -196,13 +202,13 @@ int main()
             sendString(sd, packContentMessage(recvString, K), K); // CONTENT MESSAGE - Sending credentials.
 
             recvString = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the login operation.
-     
+
             ContentMessage msg;
             if (verifyContentMessageHMAC(recvString, msg)) // Verify the HMAC of the received message.
             {
                 // Valid HMAC.
                 recvString = ContentMessageGetContent(msg, K); // Extract the content.
-              
+
                 vector<string> requestParts = divideString(recvString, '-');
 
                 if (requestParts[0] != "ok")
@@ -221,6 +227,7 @@ int main()
             {
                 // Not valid HMAC.
                 valid = false;
+                clientSuicide();
             }
 
         } while (!valid);
@@ -386,12 +393,14 @@ int main()
     {
         cout << "\nThe challenge sent is wrong!\n"
              << endl;
+        clientSuicide();
     }
     else
     {
 
         cout << "\nSomething went wrong!\n"
              << endl;
+        clientSuicide();
     }
 
     return 0;

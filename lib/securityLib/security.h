@@ -762,8 +762,8 @@ bool isCertificateValid(X509 *cert)
     // Ottieni la data corrente
     time_t now = time(nullptr);
 
-    // Estrai la data di scadenza dal certificato
-    ASN1_TIME *cert_expiry = X509_get0_notAfter(cert);
+    // Ottieni la data di scadenza dal certificato (puntatore costante)
+    const ASN1_TIME *cert_expiry = X509_get0_notAfter(cert);
     if (!cert_expiry)
     {
         throw std::runtime_error("Failed to extract certificate expiration date!");
@@ -798,6 +798,16 @@ uint8_t generate_secure_random_8_unsigned_int()
 {
     uint8_t random_number;
     if (RAND_bytes(reinterpret_cast<unsigned char *>(&random_number), sizeof(uint8_t)) != 1)
+    {
+        throw runtime_error("RAND_bytes failed");
+    }
+    return random_number;
+}
+
+uint16_t generate_secure_random_16_unsigned_int()
+{
+    uint16_t random_number;
+    if (RAND_bytes(reinterpret_cast<unsigned char *>(&random_number), sizeof(uint16_t)) != 1)
     {
         throw runtime_error("RAND_bytes failed");
     }
