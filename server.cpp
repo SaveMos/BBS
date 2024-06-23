@@ -367,35 +367,35 @@ void registrationProcedure(int socketDescriptor, bool &result, string &status, s
         if (!checkEmailFormat(ut.getEmail()))
         {
             result = false;
-            string as = "Wrong email format" + '\n';
+            string as = "Wrong email format\n";
             statusLocal = statusLocal + as;
         }
 
         if (checkUserEmail(ut.getEmail()))
         {
             result = false;
-            string as = "This email already exists" + '\n';
+            string as = "This email already exists\n";
             statusLocal = statusLocal + as;
         }
 
         if (ut.getNickname().length() < 3)
         {
             result = false;
-            string as = "Nickname must be at least of 3 characters" + '\n';
+            string as = "Nickname must be at least of 3 characters\n";
             statusLocal = statusLocal + as;
         }
 
         if (ut.getPasswordDigest().length() < 5)
         {
             result = false;
-            string as = "Password must be at least of 5 characters" + '\n';
+            string as = "Password must be at least of 5 characters\n";
             statusLocal = statusLocal + as;
         }
 
         if (checkUserList(ut.getNickname())) // Check if the nickname have already been used.
         {
             result = false;
-            string as = "This nickname already exists" + '\n';
+            string as = "This nickname already exists\n";
             statusLocal = statusLocal + as;
         }
 
@@ -482,21 +482,21 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
         if (recvStrings[0].length() < 3)
         {
             result = false;
-            string as = "Nickname must be at least of 3 characters" + '\n';
+            string as = "Nickname must be at least of 3 characters\n";
             statusLocal = statusLocal + as;
         }
 
         if (recvStrings[1].length() < 5)
         {
             result = false;
-            string as = "Password must be at least of 5 characters" + '\n';
+            string as = "Password must be at least of 5 characters\n";
             statusLocal = statusLocal + as;
         }
 
         if (!checkUserList(recvStrings[0], ut)) // Check if the nickname have already been used.
         {
             result = false;
-            string as = "This user does not exist" + '\n';
+            string as = "This user does not exist\n";
             statusLocal = statusLocal + as;
         }
         else
@@ -504,7 +504,7 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
             if (ut.getPasswordDigest() != computeHash(recvStrings[1], ut.getSalt()))
             {
                 result = false;
-                string as = "Wrong password!" + '\n';
+                string as = "Wrong password!\n";
                 statusLocal = statusLocal + as;
             }
             else
@@ -513,7 +513,7 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
                 if (connCheck == 1)
                 {
                     result = false;
-                    string as = "The user is already logged in!" + '\n';
+                    string as = "The user is already logged in!\n";
                     statusLocal = statusLocal + as;
                 }
             }
