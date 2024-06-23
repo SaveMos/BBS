@@ -16,12 +16,10 @@
 #include <errno.h>
 #include <ctype.h>
 
-#include "messageBBS.h"
-#include "security.h"
+#include "../securityLib/security.h"
 
 #ifndef COMMUNICATIONLIBRARY_H
 #define COMMUNICATIONLIBRARY_H
-
 
 // Funzione per inviare una stringa tramite un socket
 bool sendString(int socketDescriptor, string message) {
@@ -40,13 +38,11 @@ bool sendString(int socketDescriptor, string message) {
     return true; // L'invio ha avuto successo.
 }
 
-
 // Funzione per inviare una stringa tramite un socket
 bool sendString(int socketDescriptor, string message, string K) {
     string cipher = vectorUnsignedCharToString(encrypt_AES(message , K));
     return sendString(socketDescriptor , cipher);
 }
-
 
 // Funzione per ricevere una stringa tramite un socket
 std::string receiveString(int socketDescriptor) {
@@ -71,24 +67,9 @@ std::string receiveString(int socketDescriptor) {
     return message;
 }
 
-
 // Funzione per ricevere una stringa tramite un socket
 std::string receiveString(int socketDescriptor, string K) {
     return decrypt_AES(stringToUnsignedCharVector(receiveString(socketDescriptor)), K);
-}
-
-
-void sendBBSMessage(int sd, messageBBS& msg)
-{
-    string msgStr;
-    msg.concatenateFields(msgStr);
-    sendString(sd , msgStr);
-}
-
-void receiveBBSMessage(int sd, messageBBS& message)
-{
-    string mess = receiveString(sd);
-    message.deconcatenateAndAssign(mess);
 }
 
 void sendIntegerNumber(int sd, int mess)
@@ -112,4 +93,5 @@ int receiveIntegerNumber(int sd)
         return (int)(ntohl(msg));
     }
 }
+
 #endif

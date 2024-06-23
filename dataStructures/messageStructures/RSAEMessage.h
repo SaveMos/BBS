@@ -1,10 +1,7 @@
-#include <iostream>
-#include <string>
 #include <sstream>
-#include <vector>
 
-#include "../security.h"
-#include "../utility.h"
+#include "../../lib/securityLib/security.h"
+#include "../../lib/utilityLib/utility.h"
 
 using namespace std;
 

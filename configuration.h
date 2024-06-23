@@ -17,8 +17,4 @@
 
 #define STANDARD_INPUT 0
 
-const char* PRIVATE_KEY_PATH = "keyStorage/rsa_privkey.pem";
-const char* PUBLIC_KEY_PATH = "keyStorage/rsa_pubkey.pem";
-const char* PRIVATE_ENC = "keyPassword"; // AES256 key used to encrypt the rsa private key.
-
 #endif

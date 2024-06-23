@@ -1,5 +1,4 @@
-#include <string>
-#include "timestampLibrary.h" // Assumo che questa libreria definisca getCurrentTimestamp()
+#include "../../lib/utilityLib/timestampLibrary.h" // Assumo che questa libreria definisca getCurrentTimestamp()
 using namespace std;
 
 #ifndef CONNECTIONINFORMATION_H

@@ -1,9 +1,8 @@
-#include <string>
-#include <vector>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
-#include <iostream>
+#include <cstdio>
+#include <unistd.h>
 
 #include <openssl/sha.h>
 #include <openssl/evp.h>
@@ -15,14 +14,14 @@
 #include <openssl/hmac.h>
 #include <openssl/bn.h>
 
-#include "utilityFile.h"
-#include "utility.h"
-#include "configuration.h"
+#include "../utilityLib/utility.h"
 
 using namespace std;
 
 #ifndef SECURITY_H
 #define SECURITY_H
+
+const char *PRIVATE_ENC = "keyPassword"; // AES256 key used to encrypt the rsa private key.
 
 void handleErrors()
 {
@@ -32,34 +31,40 @@ void handleErrors()
 
 // ----------------------------- Digest e HMAC -------------------------------------------
 
-string computeHash(string input, string salt = "") {
+string computeHash(string input, string salt = "")
+{
     // Creazione del contesto
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
-    if (mdctx == nullptr) {
+    if (mdctx == nullptr)
+    {
         throw runtime_error("EVP_MD_CTX_new failed");
     }
 
     // Selezione dell'algoritmo di hash (SHA-256)
     const EVP_MD *md = EVP_sha256();
-    if (md == nullptr) {
+    if (md == nullptr)
+    {
         EVP_MD_CTX_free(mdctx);
         throw runtime_error("EVP_sha256 failed");
     }
 
     // Inizializzazione del contesto per l'hash
-    if (1 != EVP_DigestInit_ex(mdctx, md, nullptr)) {
+    if (1 != EVP_DigestInit_ex(mdctx, md, nullptr))
+    {
         EVP_MD_CTX_free(mdctx);
         throw runtime_error("EVP_DigestInit_ex failed");
     }
 
     // Aggiornamento del contesto con il salt
-    if (1 != EVP_DigestUpdate(mdctx, salt.c_str(), salt.size())) {
+    if (1 != EVP_DigestUpdate(mdctx, salt.c_str(), salt.size()))
+    {
         EVP_MD_CTX_free(mdctx);
         throw runtime_error("EVP_DigestUpdate failed");
     }
 
     // Aggiornamento del contesto con i dati
-    if (1 != EVP_DigestUpdate(mdctx, input.c_str(), input.size())) {
+    if (1 != EVP_DigestUpdate(mdctx, input.c_str(), input.size()))
+    {
         EVP_MD_CTX_free(mdctx);
         throw runtime_error("EVP_DigestUpdate failed");
     }
@@ -69,7 +74,8 @@ string computeHash(string input, string salt = "") {
     unsigned int lengthOfHash = 0;
 
     // Finalizzazione del calcolo dell'hash
-    if (1 != EVP_DigestFinal_ex(mdctx, hash, &lengthOfHash)) {
+    if (1 != EVP_DigestFinal_ex(mdctx, hash, &lengthOfHash))
+    {
         EVP_MD_CTX_free(mdctx);
         throw runtime_error("EVP_DigestFinal_ex failed");
     }
@@ -79,7 +85,8 @@ string computeHash(string input, string salt = "") {
 
     // Convertiamo l'hash in una stringa esadecimale
     stringstream ss;
-    for (unsigned int i = 0; i < lengthOfHash; ++i) {
+    for (unsigned int i = 0; i < lengthOfHash; ++i)
+    {
         ss << hex << setw(2) << setfill('0') << static_cast<int>(hash[i]);
     }
 
@@ -160,16 +167,18 @@ string calculateHMAC(string key, string message, const EVP_MD *evp_md)
     return hmac;
 }
 
-string calculateHMAC(string key, string message){
+string calculateHMAC(string key, string message)
+{
     const EVP_MD *evp_md = EVP_sha256();
-    return calculateHMAC(key, message , evp_md);
+    return calculateHMAC(key, message, evp_md);
 }
 
-bool verifyHMAC(string key, string message , string HMACtoVerify){
-    return (calculateHMAC(key , message) == HMACtoVerify);
+bool verifyHMAC(string key, string message, string HMACtoVerify)
+{
+    return (calculateHMAC(key, message) == HMACtoVerify);
 }
 
-bool checkSaltedPasswordDigest(string inputPassword, string passwordDigest,  string salt = "")
+bool checkSaltedPasswordDigest(string inputPassword, string passwordDigest, string salt = "")
 {
     if (computeHash(inputPassword, salt) == passwordDigest)
     {
@@ -195,7 +204,8 @@ void stringToCharArray(const string &str, char *charArray, size_t maxLen)
 
 // ----------------------------- AES -------------------------------------------
 // Funzione per cifrare una stringa
-vector<unsigned char> encrypt_AES(const string &plaintext, const string &key){
+vector<unsigned char> encrypt_AES(const string &plaintext, const string &key)
+{
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
@@ -250,7 +260,8 @@ vector<unsigned char> encrypt_AES(const string &plaintext, const string &key){
 }
 
 // Funzione per decifrare una stringa
-string decrypt_AES(const vector<unsigned char> &ciphertext, const string &key){
+string decrypt_AES(const vector<unsigned char> &ciphertext, const string &key)
+{
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
@@ -294,8 +305,9 @@ string decrypt_AES(const vector<unsigned char> &ciphertext, const string &key){
     return string(paddedPlaintext.begin(), paddedPlaintext.end());
 }
 
-string decrypt_AES(const string &ciphertext, const string &key){
-    return decrypt_AES(stringToVectorUnsignedChar(ciphertext) , key);
+string decrypt_AES(const string &ciphertext, const string &key)
+{
+    return decrypt_AES(stringToVectorUnsignedChar(ciphertext), key);
 }
 
 // --------------- RSA Part -----------------------------------------------------------------------------------------------
@@ -437,7 +449,7 @@ EVP_PKEY *loadRSAKey(const char *path, const bool public_key)
 
     if (!file)
     {
-        throw runtime_error("RSA Keys file cannot be opened!");
+        throw std::runtime_error("RSA Keys file cannot be opened!");
     }
 
     if (public_key)
@@ -453,44 +465,7 @@ EVP_PKEY *loadRSAKey(const char *path, const bool public_key)
 
     if (!pkey)
     {
-        throw runtime_error("RSA Keys cannot be loaded!");
-    }
-
-    return pkey;
-}
-
-// Funzione per caricare una chiave RSA da file
-EVP_PKEY *loadRSAKey(const bool public_key)
-{
-    EVP_PKEY *pkey = nullptr;
-
-    if (public_key)
-    {
-        FILE *file = fopen(PUBLIC_KEY_PATH, "r");
-        if (!file)
-        {
-            throw runtime_error("RSA Public Key file cannot be opened!");
-        }
-        pkey = PEM_read_PUBKEY(file, nullptr, nullptr, nullptr);
-        if (!pkey)
-        {
-            throw runtime_error("RSA Public Key cannot be loaded!");
-        }
-        fclose(file);
-    }
-    else
-    {
-        FILE *file = fopen(PRIVATE_KEY_PATH, "r");
-        if (!file)
-        {
-            throw runtime_error("RSA Private Key file cannot be opened!");
-        }
-        pkey = PEM_read_PrivateKey(file, nullptr, nullptr, (void *)PRIVATE_ENC);
-        if (!pkey)
-        {
-            throw runtime_error("RSA Private Key cannot be loaded!");
-        }
-        fclose(file);
+        throw std::runtime_error("RSA Keys cannot be loaded!");
     }
 
     return pkey;

@@ -9,3 +9,5 @@ testing
 *.cpp
 testing.cpp
 testing
+progClr
+progServer

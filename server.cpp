@@ -1,17 +1,27 @@
 #include <mutex>
 #include <thread>
 
-#include "messagePackingLibrary.h"
-#include "communicationLibrary.h"
+#include "lib/communicationLib/communicationLibrary.h"
+#include "lib/communicationLib/messagePackingLibrary.h"
+
 #include "configuration.h"
-#include "utilityFile.h"
-#include "connectionInformation.h"
+
+#include "lib/utilityLib/utilityFile.h"
+
+#include "dataStructures/models/userBBS.h"
+#include "dataStructures/models/messageBBS.h"
+#include "dataStructures/models/connectionInformation.h"
 
 #define MAXIMUM_NUMBER_OF_THREAD 100
 #define MAXIMUM_REQUEST_NUMBER 1000
 #define SNAPSHOT_PERIOD 30
-
 #define CONNECTION_INFO_CHECK_PERIOD 15
+
+#define MESSAGE_FILE_PATH "fileStorage/messageFile.txt"
+#define USERS_FILE_PATH "fileStorage/userFile.txt"
+#define USERS_PASSWORDS_FILE_PATH "fileStorage/userPasswords.txt"
+#define CONNECTION_INFORMATION_FILE_PATH "fileStorage/connectionInfo.txt"
+
 using namespace std;
 // Variabili dei Threads
 mutex mutexBBS;
@@ -33,6 +43,8 @@ vector<connectionInformation> connections;
 EVP_PKEY *serverPrivateKey;
 std::string encryptedAesKey;
 std::string aesKey;
+
+
 
 string List(int n)
 {
@@ -117,6 +129,250 @@ void Remove(uint32_t id)
     // numberOfMessages--;           // We got a new message in the board.
     messageBoard.at(id).setId(0); // Invalidate the message
     mutexBBS.unlock();
+}
+
+// insert all the users inside the file of users
+void insertUserInFile(vector<userBBS> userList)
+{
+    string filenameGeneric("fileStorage/userFile.txt");
+    string filenamePasswords("fileStorage/userPasswords.txt");
+    // Delete the content of the entire file
+    clearFileContent(filenameGeneric);
+    clearFileContent(filenamePasswords);
+
+    fstream userFile;
+    userFile.open(filenameGeneric, std::fstream::app); // Open the file in append.
+    if (userFile.is_open())
+    {
+        // ad a row in the file for each user
+        for (uint64_t i = 0; i < userList.size(); i++)
+        {
+            userFile << userList.at(i).getNickname() + "-" +
+                            userList.at(i).getSalt() + "-" +
+                            userList.at(i).getEmail() + "-" +
+                            userList.at(i).getCounter()
+                     << endl;
+        }
+    }
+    else
+    {
+        cout << "Error during the file opening" << endl;
+    }
+    userFile.close(); // Close the file.
+
+    userFile.open(filenamePasswords, std::fstream::app); // Open the file in append.
+    if (userFile.is_open())
+    {
+        // ad a row in the file for each user
+        for (uint64_t i = 0; i < userList.size(); i++)
+        {
+            userFile << userList.at(i).getNickname() + "-" + userList.at(i).getPasswordDigest() << endl;
+        }
+    }
+    else
+    {
+        cout << "Error during the file opening" << endl;
+    }
+    userFile.close(); // Close the file.
+}
+
+uint64_t checkUserListIndex(vector<userBBS> &userList, string inputNickname)
+{
+    uint64_t index = 0;
+    const size_t size = userList.size();
+    for (size_t i = 0; i < size; i++)
+    {
+        if (userList[i].getNickname() == inputNickname)
+        {
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+
+// insert all the users from the file into the vector
+void insertUserInVector(vector<userBBS> &userList, string pathUsers = USERS_FILE_PATH , string pathPasswords = USERS_PASSWORDS_FILE_PATH)
+{
+    userList.clear();
+    ifstream filenameGeneric(pathUsers);
+    if (filenameGeneric.is_open())
+    {
+        string line;
+        vector<string> ret;
+
+        // for each line of the file extract all the attributes of a user and insert it into the vector
+        while (getline(filenameGeneric, line))
+        {
+            deconcatenateFields(ret, line);
+            // Assign each attribute to the user
+            userBBS newUser;
+            newUser.setNickname(ret.at(0));
+            newUser.setSalt(ret.at(1));
+            newUser.setEmail(ret.at(2));
+            newUser.setCounter(ret.at(3));
+
+            userList.push_back(newUser); // tail-insert the user inside the user list.
+            ret.clear();
+        }
+    }
+    else
+    {
+        cout << "Error during the users file opening" << endl;
+    }
+    filenameGeneric.close(); // Close the file
+
+    ifstream filenamePasswords(pathPasswords);
+    if (filenamePasswords.is_open())
+    {
+        string line;
+        vector<string> ret;
+        uint64_t index;
+
+        // for each line of the file extract all the attributes of a user and insert it into the vector
+        while (getline(filenamePasswords, line))
+        {
+            deconcatenateFields(ret, line);
+            index = checkUserListIndex(userList, ret.at(0));
+            userList[index].setPasswordDigest(ret.at(1));
+            ret.clear();
+        }
+    }
+    else
+    {
+        cout << "Error during the users passwords file opening" << endl;
+    }
+    filenamePasswords.close(); // Close the file
+}
+
+// insert all the messages inside the file of messages
+void insertMessageInFile(vector<messageBBS> messageList, string path = MESSAGE_FILE_PATH)
+{
+    string filename(path);
+    clearFileContent(filename); // delete the content of the entire file
+
+    fstream messageFile;
+    messageFile.open(filename, std::fstream::app); // open the file in append
+
+    if (messageFile.is_open())
+    {
+        // ad a row in the file for each message
+        for (uint64_t i = 0; i < messageList.size(); i++)
+        {
+            messageFile << to_string(messageList.at(i).getId()) + "-" + messageList.at(i).getAuthor() + "-" + messageList.at(i).getTitle() + "-" + messageList.at(i).getBody() << endl;
+        }
+    }
+    else
+    {
+        cout << "Error during the file opening" << endl;
+    }
+
+    messageFile.close();
+}
+
+// insert all the messages from the file into the vector
+void insertMessageInVector(vector<messageBBS> &messageList, string path = MESSAGE_FILE_PATH)
+{
+    ifstream filename(path);
+    if (filename.is_open())
+    {
+
+        string line;
+        vector<string> ret;
+
+        // for each line of the file extract all the attributes of a message and insert it into the vector
+        while (getline(filename, line))
+        {
+            // Here we must decrypt the line.
+            deconcatenateFields(ret, line);
+            // assign each attribute to the user
+            messageBBS newMessage;
+            newMessage.setId(stoi(ret.at(0))); // convert a string into a u_int32_t for the id field
+            newMessage.setAuthor(ret.at(1));
+            newMessage.setTitle(ret.at(2));
+            newMessage.setBody(ret.at(3));
+
+            // insert inside the vector
+            messageList.push_back(newMessage);
+
+            ret.clear();
+        }
+    }
+    else
+    {
+        cout << "Error during the file opening" << endl;
+    }
+
+    filename.close(); // close file
+}
+
+// insert all the messages inside the file of messages
+void insertConnectionInformationInFile(vector<connectionInformation> connList, string path = CONNECTION_INFORMATION_FILE_PATH)
+{
+    string filename(path);
+    clearFileContent(filename); // delete the content of the entire file
+
+    fstream connFile;
+    connFile.open(filename, std::fstream::app); // open the file in append
+
+    if (connFile.is_open())
+    {
+        // ad a row in the file for each message
+        for (uint64_t i = 0; i < connList.size(); i++)
+        {
+            connFile << to_string(connList.at(i).getSocketDescriptor()) + "-" +
+                            connList.at(i).getNickname() + "-" +
+                            connList.at(i).getLoginTimestamp() + "-" +
+                            connList.at(i).getLastActivityTimeStamp() + "-" +
+                            to_string(connList.at(i).getLogged())
+                     << endl;
+        }
+    }
+    else
+    {
+        cout << "Error during the file opening" << endl;
+    }
+
+    connFile.close();
+}
+
+// insert all the messages from the file into the vector
+void insertConnectionInformationInVector(vector<connectionInformation> &connList, string path = CONNECTION_INFORMATION_FILE_PATH)
+{
+    ifstream filename(path);
+
+    if (filename.is_open())
+    {
+        string line;
+        vector<string> ret;
+
+        // for each line of the file extract all the attributes of a message and insert it into the vector
+        while (getline(filename, line))
+        {
+
+            // Here we must decrypt the line.
+
+            deconcatenateFields(ret, line);
+
+            // assign each attribute to the user
+            connectionInformation conn;
+            conn.setSocketDescriptor(stoi(ret.at(0))); // convert a string into a u_int32_t for the id field
+            conn.setNickname(ret.at(1));
+            conn.setLoginTimestamp(ret.at(2));
+            conn.setLastActivityTimeStamp(ret.at(3));
+            conn.setLogged(stoi(ret.at(4)));
+
+            connList.push_back(conn); // insert inside the vector.
+
+            ret.clear();
+        }
+    }
+    else
+    {
+        cout << "Error during the file opening" << endl;
+    }
+
+    filename.close(); // close file
 }
 
 void periodicCheckOfTheBoard()

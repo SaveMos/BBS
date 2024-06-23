@@ -1,16 +1,15 @@
 
-#include "communicationLibrary.h"
+#include "lib/communicationLib/communicationLibrary.h"
+#include "lib/communicationLib/messagePackingLibrary.h"
 #include "configuration.h"
-#include "userBBS.h"
+#include "dataStructures/models/userBBS.h"
+
 #include <mutex>
-#include <vector>
 #include <thread>
-#include <iostream>
 #include <chrono>
-#include <string>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
-#include "messagePackingLibrary.h"
+
 using namespace std;
 
 void Client_RSAE(int sd, uint64_t R, string K)

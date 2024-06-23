@@ -1,6 +1,4 @@
-#include <string>
-#include <vector>
-#include "utility.h"
+#include "../../lib/utilityLib/utility.h"
 using namespace std;
 
 #ifndef MESSAGEBBS_H

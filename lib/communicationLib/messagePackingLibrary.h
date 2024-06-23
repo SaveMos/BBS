@@ -1,7 +1,7 @@
-#include "messageStructures/simpleMessage.h"
-#include "messageStructures/contentMessage.h"
-#include "messageStructures/RSAEMessage.h"
-#include "security.h"
+#include "../../dataStructures/messageStructures/simpleMessage.h"
+#include "../../dataStructures/messageStructures/contentMessage.h"
+#include "../../dataStructures/messageStructures/RSAEMessage.h"
+#include "../securityLib/security.h"
 
 #ifndef MESSAGEPACKINGLIBRARY_H
 #define MESSAGEPACKINGLIBRARY_H
