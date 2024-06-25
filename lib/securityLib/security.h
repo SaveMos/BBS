@@ -176,20 +176,14 @@ string calculateHMAC(string key, string message)
 
 bool verifyHMAC(string key, string message, string HMACtoVerify)
 {
-    return (calculateHMAC(key, message) == HMACtoVerify);
+    string m = calculateHMAC(key, message); // protection from timing attacks.
+    return (computeHash(m) == computeHash(HMACtoVerify)); // The adversary cannot know which byte are being verified.
 }
 
 bool checkSaltedPasswordDigest(string inputPassword, string passwordDigest, string salt = "")
 {
-    if (computeHash(inputPassword, salt) == passwordDigest)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-    return false;
+    string m = computeHash(inputPassword, salt); // protection from timing attacks.
+    return (computeHash(m) == computeHash(passwordDigest));  // The adversary cannot know which byte are being verified.
 }
 
 vector<unsigned char> stringToUnsignedCharVector(const string &str)
@@ -625,7 +619,7 @@ bool verifyDigitalSignature(const string &message, const vector<unsigned char> &
     }
 
     // Perform the verification
-    int result = EVP_DigestVerifyFinal(mdCtx, signature.data(), signature.size());
+    const int result = EVP_DigestVerifyFinal(mdCtx, signature.data(), signature.size());
 
     EVP_MD_CTX_free(mdCtx);
 
