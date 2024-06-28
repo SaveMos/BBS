@@ -44,6 +44,10 @@ EVP_PKEY *serverPrivateKey;
 std::string encryptedAesKey;
 std::string aesKey;
 
+void threadSuicide()
+{
+    pthread_exit((void *)NULL);
+}
 
 string List(int n)
 {
@@ -191,7 +195,7 @@ uint64_t checkUserListIndex(vector<userBBS> &userList, string inputNickname)
 }
 
 // insert all the users from the file into the vector
-void insertUserInVector(vector<userBBS> &userList, string pathUsers = USERS_FILE_PATH , string pathPasswords = USERS_PASSWORDS_FILE_PATH)
+void insertUserInVector(vector<userBBS> &userList, string pathUsers = USERS_FILE_PATH, string pathPasswords = USERS_PASSWORDS_FILE_PATH)
 {
     userList.clear();
     ifstream filenameGeneric(pathUsers);
@@ -593,21 +597,21 @@ void registrationProcedure(int socketDescriptor, bool &result, string &status, s
     userBBS ut;
     do
     {
-        // Receive the encrypted message and HMAC from the client
-        req = receiveString(socketDescriptor, K);
-    
+        req = receiveString(socketDescriptor); // CONTENT MESSAGE - Receive the credentials from the client.
+
         ContentMessage msg;
         if (!verifyContentMessageHMAC(req, msg)) // Verify the HMAC of the received message.
         {
             // Not valid HMAC.
-            // CLose the connection
+            close(socketDescriptor);
+            threadSuicide();
         }
 
         try
         {
-            req = ContentMessageGetContent(msg, K); // Extract the content.
+            req = ContentMessageGetContent(msg, K); // Extract (decrypt) the content from the message.
             ut.deconcatenateAndAssign(req);         // Extract the user info.
-            ut.setCounter(0);
+            ut.setCounter(0);                       // It is a registration, so we start from 0.
         }
         catch (const char *e)
         {
@@ -661,16 +665,16 @@ void registrationProcedure(int socketDescriptor, bool &result, string &status, s
         }
 
         status = statusLocal;
-        sendString(socketDescriptor, packContentMessage(status, K), K);
+        sendString(socketDescriptor, packContentMessage(status, K)); // CONTENT MESSAGE - send the registration operation result.
 
     } while (!valid);
 
     // -------------------CHALLENGE -------------------------------
 
-    string sendReq = to_string(generate_secure_random_16_unsigned_int());   // generate the challenge
-    sendString(socketDescriptor, packContentMessage(sendReq, K), K); // CONTENT MESSAGE -Send the challenge.
+    string sendReq = to_string(generate_secure_random_16_unsigned_int()); // generate the challenge, a 16 bit unsigned int.
+    sendString(socketDescriptor, packContentMessage(sendReq, K));         // CONTENT MESSAGE - Send the challenge.
 
-    string recvReq = receiveString(socketDescriptor, K); // CONTENT MESSAGE -Receive the challenge.
+    string recvReq = receiveString(socketDescriptor); // CONTENT MESSAGE -Receive the challenge.
     ContentMessage msg;
     if (verifyContentMessageHMAC(recvReq, msg))
     {
@@ -682,27 +686,33 @@ void registrationProcedure(int socketDescriptor, bool &result, string &status, s
 
             // We can insert the user in the list.
             mutexUserList.lock();
-            userList.push_back(ut);
+            userList.push_back(ut); // We insert the new user in the list.
             mutexUserList.unlock();
 
             connectionInformation c(socketDescriptor, ut.getNickname(), getCurrentTimestamp(), getCurrentTimestamp(), true);
             mutexConnections.lock();
-            connections.push_back(c);
+            connections.push_back(c); // We insert the new user connection info in the list.
             mutexConnections.unlock();
 
             result = true;
             status = "User registered!";
             sendIntegerNumber(socketDescriptor, 1); // INTEGER MESSAGE - Send the result of the login/registration process.
             nickName = ut.getNickname();            // Save the nickname for later.
-            return;
         }
         else
         {
+            // Challenge failed.
             result = false;
             sendIntegerNumber(socketDescriptor, -1); // INTEGER MESSAGE - Send the result of the login/registration process.
             close(socketDescriptor);
-            return;
+            threadSuicide(); // The server thread terminates.
         }
+    }
+    else
+    {
+        // Not valid HMAC.
+        close(socketDescriptor);
+        threadSuicide();
     }
 }
 
@@ -718,8 +728,7 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
         recvStrings.clear();
         result = true;
         statusLocal = "ERROR-";
-        // Receive the encrypted message and HMAC from the client
-        req = receiveString(socketDescriptor, K); // CONTENT MESSAGE - Sending credentials.
+        req = receiveString(socketDescriptor); // CONTENT MESSAGE - Receive the credentials from the client.
 
         if (!verifyContentMessageHMAC(req, msg)) // Verify the HMAC of the received message.
         {
@@ -730,9 +739,9 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
             return;
         }
 
-        req = ContentMessageGetContent(msg, K); // Extract the content.
+        req = ContentMessageGetContent(msg, K); // Extract the content (credentials) from the content message.
 
-        recvStrings = divideString(req);
+        recvStrings = divideString(req); // Parse the credentials string.
 
         if (recvStrings[0].length() < 3)
         {
@@ -764,8 +773,7 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
             }
             else
             {
-                const uint8_t connCheck = checkUserConnectionInfoAtLoginOrRegistration(ut.getNickname());
-                if (connCheck == 1)
+                if (checkUserConnectionInfoAtLoginOrRegistration(ut.getNickname()) == 1)
                 {
                     result = false;
                     string as = "The user is already logged in!\n";
@@ -777,7 +785,7 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
         if (result)
         {
             status = "ok-" + ut.getCounter();
-            sendString(socketDescriptor, packContentMessage(status, K), K); // CONTENT MESSAGE - Send the result of the login operation.
+            sendString(socketDescriptor, packContentMessage(status, K)); // CONTENT MESSAGE - Send the result of the login operation.
 
             // if the password of the choosen nickname is correct.
             refreshConnectionInformation(ut.getNickname(), socketDescriptor, "login");
@@ -789,7 +797,7 @@ void loginProcedure(int socketDescriptor, bool &result, string &status, string &
         }
         else
         {
-            sendString(socketDescriptor, packContentMessage(statusLocal, K), K); // CONTENT MESSAGE - Send the result of the login operation.
+            sendString(socketDescriptor, packContentMessage(statusLocal, K)); // CONTENT MESSAGE - Send the result of the login operation.
             // sendIntegerNumber(socketDescriptor, 0);                              // INTEGER MESSAGE - Send the result of the login/registration process.
         }
 
@@ -809,11 +817,11 @@ void BBSsession(int socketDescriptor, string nickNameRecv, string K)
 
     while (true)
     {
-        req = receiveString(socketDescriptor, K); // CONTENT MESSAGE - Get the request type from the client.
+        req = receiveString(socketDescriptor); // CONTENT MESSAGE - Get the request from the client.
 
         msg.deconcatenateAndAssign(req);
-        content = ContentMessageGetContent(msg, K);
-        requests = divideString(content, '-');
+        content = ContentMessageGetContent(msg, K); // Extract (decrypt) the test from the message.
+        requests = divideString(content, '-');      // Parse the content of the message to elaborate the request.
 
         if (requests[0] == "logout")
         {
@@ -836,12 +844,12 @@ void BBSsession(int socketDescriptor, string nickNameRecv, string K)
                 if (requestType == LIST_REQUEST_TYPE)
                 {
                     string pack = packContentMessage(List(stoi(requests[1])), K);
-                    sendString(socketDescriptor, pack, K);
+                    sendString(socketDescriptor, pack); // CONTENT MESSAGE - send the wanted operation result.
                 }
                 else if (requestType == GET_REQUEST_TYPE)
                 {
                     string pack = packContentMessage(Get(stoi(requests[1])).toListed(), K);
-                    sendString(socketDescriptor, pack, K);
+                    sendString(socketDescriptor, pack); // CONTENT MESSAGE - send the wanted operation result.
                 }
                 else if (requestType == ADD_REQUEST_TYPE)
                 {
@@ -850,13 +858,13 @@ void BBSsession(int socketDescriptor, string nickNameRecv, string K)
                     sendIntegerNumber(socketDescriptor, 1); // INTEGER NUMBER - Send the result of the ADD operation.
                 }
 
-                refreshConnectionInformation(nickNameRecv, socketDescriptor, "generic");
-                IncrementUserCounter(userIndex);
+                refreshConnectionInformation(nickNameRecv, socketDescriptor, "generic"); // The user did something, so we record it.
+                IncrementUserCounter(userIndex);                                         // The user sent a valid/invalid message, so we record it.
                 counterCurrent++;
             }
         }
     }
-    doSnapshot();
+    doSnapshot(); // Wen the session ends, we do a snapshot of the primary memory.
 }
 
 void threadServerCode(int new_sd)
@@ -865,7 +873,7 @@ void threadServerCode(int new_sd)
     bool howItEnded = false;     // It becomes true if the procedure goes fine.
     string status = "";          // Explain the result of the procedure.
 
-    string recvReq = receiveString(new_sd);
+    string recvReq = receiveString(new_sd); // SIMPLE MESSAGE - Receive the first message from the client.
     SimpleMessage simpleMsg;
     simpleMsg.deconcatenateAndAssign(recvReq);
 
@@ -876,17 +884,17 @@ void threadServerCode(int new_sd)
     // ------------------ BEGIN RSAE ---------------------------
 
     string Tpubkey, Tprivkey;
-    generateRSAKeyPair(Tpubkey, Tprivkey);
+    generateRSAKeyPair(Tpubkey, Tprivkey); // Generate the RSA temporary keys.
 
     RSAEMessage messageRSAE;
     messageRSAE.setPublicKey(Tpubkey);
-    messageRSAE.computeDigitalFirm(R, loadRSAKey("serverPrivateKey/rsa_privkey.pem" , false));
+    messageRSAE.computeDigitalFirm(R, loadRSAKey("serverPrivateKey/rsa_privkey.pem", false));
     messageRSAE.setCert(loadCertFromPEM("serverPublicKey/cacert.pem"));
     messageRSAE.concatenateFields(recvReq);
 
-    sendString(new_sd, recvReq); // Send the RSAE Message
+    sendString(new_sd, recvReq); // RSAE MESSAGE - Send the RSAE Message
 
-    recvReq = receiveString(new_sd);
+    recvReq = receiveString(new_sd); // No TYPE MESSAGE - Receive the client response, which contains the sessione key.
 
     const string K = rsa_decrypt(recvReq, convertStringToPrivateEVP_PKEY(Tprivkey));
     // ------------------ END RSAE ---------------------------

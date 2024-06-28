@@ -21,18 +21,19 @@ void Client_RSAE(int sd, uint64_t R, string K)
 {
     RSAEMessage messageRSAE;
 
-    string recvReq = receiveString(sd);
+    string recvReq = receiveString(sd); // RSAE Message - Receive the temporary public key, digital signature and certificate from the server.
 
-    messageRSAE.deconcatenateAndAssign(recvReq);
+    messageRSAE.deconcatenateAndAssign(recvReq); // Reconstruct the object.
 
     if (messageRSAE.verifyDigitalFirm(R) && messageRSAE.verifyCertificateValidity())
     {
         // Digital signature and certificate is ok
-        sendString(sd, rsa_encrypt(K, convertStringToPublicEVP_PKEY(messageRSAE.getPublicKey()))); // Send the crypted key.
+        sendString(sd, rsa_encrypt(K, convertStringToPublicEVP_PKEY(messageRSAE.getPublicKey()))); // NO Type message - Send the session key K, crypted with the temporary public key sent by the server.
     }
     else
     {
-        clientSuicide();
+        // Is something is off, the client teminates.
+        clientSuicide(); // The client terminates.
     }
 }
 
@@ -62,27 +63,25 @@ void Check_and_print_the_received_ContentMessage(string recvString, string K, bo
 
 int main()
 {
-
     // Variables declaration.
     struct sockaddr_in server_addr; // Socket of the server.
     int sd, ret;
 
-    // Dichiarazione Set
-
+    // Set declaration.
     int fd_max;
     fd_set read_fs;
     fd_set master;
 
     // Client program.
     sd = socket(AF_INET, SOCK_STREAM, 0);         // The main socket descriptor.
-    memset(&server_addr, 0, sizeof(server_addr)); // Pulisco la zona di memoria.
+    memset(&server_addr, 0, sizeof(server_addr)); // Clean the memory.
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(SERVER_PORT);
     inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr);
 
     if (connect(sd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
-        clientSuicide();
+        clientSuicide(); // The client terminates. // The client terminates.
     }
 
     cout << "************ BBS *************" << endl;
@@ -100,14 +99,12 @@ int main()
     do
     {
         cout << "Insert 'reg' for register or insert 'log' for login" << endl;
-        // we use the getline to get also the white spaces
-        getline(cin, requestString);
+        getline(cin, requestString); // We use the getline to get also the white spaces
     } while (requestString != "reg" && requestString != "log");
 
     SimpleMessage helloMsg;
     const uint64_t R = generate_secure_random_64_unsigned_int();
     const string K = generateRandomKey(64);
-    // sendString(sd , "ciao" , K);
 
     if (requestString == "reg")
     {
@@ -115,10 +112,11 @@ int main()
         string req = "reg-" + to_string(R);
         req = packSimpleMessage(req);
         sendString(sd, req);   // SIMPLE MESSAGE - Send the registration request.
-        Client_RSAE(sd, R, K); // RSAE Procedure.
+        Client_RSAE(sd, R, K); // Start the RSAE Procedure.
 
         do
         {
+            // Fetch the new user credentials.
             cout << "Insert email" << endl;
             cin >> p_mail;
             cout << "Insert nickname" << endl;
@@ -129,17 +127,17 @@ int main()
             // Create the new user structure.
             userBBS ut;
             ut.setNickname(p_nick);
-            ut.setSalt("SALE");
+            ut.setSalt("salt"); // The salt we be effectively created by the server.
             ut.setEmail(p_mail);
             ut.setPasswordDigest(p_pwd);
             ut.setCounter(0);
-            ut.concatenateFields(req);
+            ut.concatenateFields(req); // From the user we create a string with all the fields concatenated.
 
-            req = packContentMessage(req, K);
+            req = packContentMessage(req, K); // Create a content message using the concatenated user structure.
 
-            sendString(sd, req, K); // CONTENT MESSAGE - Send the credentials to the server.
+            sendString(sd, req); // CONTENT MESSAGE - Send the credentials to the server.
 
-            req = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the wanted operation.
+            req = receiveString(sd); // CONTENT MESSAGE - Receive the result of the wanted operation.
             ContentMessage msg;
             if (verifyContentMessageHMAC(req, msg)) // Verify the HMAC of the received message.
             {
@@ -158,13 +156,13 @@ int main()
             else
             {
                 // Not valid HMAC.
-                clientSuicide();
+                clientSuicide(); // The client terminates. // The client terminates.
             }
 
         } while (!valid);
 
         // --------------- CHALLENGE --------------------------------------------
-        req = receiveString(sd, K); // CONTENT MESSAGE - Receive the challenge.
+        req = receiveString(sd); // CONTENT MESSAGE - Receive the challenge.
         ContentMessage msg;
         if (verifyContentMessageHMAC(req, msg))
         {
@@ -172,10 +170,10 @@ int main()
             cout << "Send the same value to the server" << endl;
             cin >> req;
 
-            sendString(sd, packContentMessage(req, K), K); // CONTENT MESSAGE - Send the response to the challenge.
-        }
-        {
-            clientSuicide();
+            sendString(sd, packContentMessage(req, K)); // CONTENT MESSAGE - Send the response to the challenge.
+        }else{
+            cout << "HMAC non valido" << endl;
+            clientSuicide(); // The client terminates.
         }
         // --------------- FINE CHALLENGE --------------------------------------------
     }
@@ -199,9 +197,9 @@ int main()
 
             string recvString = p_nick + "-" + p_pwd;
 
-            sendString(sd, packContentMessage(recvString, K), K); // CONTENT MESSAGE - Sending credentials.
+            sendString(sd, packContentMessage(recvString, K)); // CONTENT MESSAGE - Sending credentials.
 
-            recvString = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the login operation.
+            recvString = receiveString(sd); // CONTENT MESSAGE - Receive the result of the login operation.
 
             ContentMessage msg;
             if (verifyContentMessageHMAC(recvString, msg)) // Verify the HMAC of the received message.
@@ -227,7 +225,7 @@ int main()
             {
                 // Not valid HMAC.
                 valid = false;
-                clientSuicide();
+                clientSuicide(); // The client terminates.
             }
 
         } while (!valid);
@@ -274,7 +272,7 @@ int main()
                     counter++;
                     string recvString = "logout-" + to_string(counter);
                     recvString = packContentMessage(recvString, K);
-                    sendString(sd, recvString, K);
+                    sendString(sd, recvString); // CONTENT MESSAGE - send the operation details.
                     cout << "Bye bye!\n----------------------------------" << endl;
                     return 0;
                 }
@@ -305,9 +303,9 @@ int main()
 
                 string recvString = to_string(LIST_REQUEST_TYPE) + "-" + to_string(howMany) + "-" + to_string(counter + 1);
                 recvString = packContentMessage(recvString, K);
-                sendString(sd, recvString, K); // CONTENT MESSAGE - Send the wanted operation.
+                sendString(sd, recvString);  // CONTENT MESSAGE - send the operation details.
 
-                recvString = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the wanted operation.
+                recvString = receiveString(sd); // CONTENT MESSAGE - Receive the result of the wanted operation.
                 Check_and_print_the_received_ContentMessage(recvString, K, true);
 
                 counter++; // se ok, incrementa
@@ -338,9 +336,9 @@ int main()
 
                 string recvString = to_string(GET_REQUEST_TYPE) + "-" + to_string(targetId) + "-" + to_string(counter + 1);
                 recvString = packContentMessage(recvString, K);
-                sendString(sd, recvString, K); // CONTENT MESSAGE - Send the wanted operation.
+                sendString(sd, recvString); // CONTENT MESSAGE - send the operation details.
 
-                recvString = receiveString(sd, K); // CONTENT MESSAGE - Receive the result of the wanted operation.
+                recvString = receiveString(sd); // CONTENT MESSAGE - Receive the result of the wanted operation.
                 Check_and_print_the_received_ContentMessage(recvString, K, true);
 
                 counter++; // se ok, incrementa
@@ -370,7 +368,7 @@ int main()
 
                     string recvString = to_string(ADD_REQUEST_TYPE) + "-" + (title + '|' + body) + "-" + to_string(counter + 1);
                     recvString = packContentMessage(recvString, K);
-                    sendString(sd, recvString, K); // CONTENT MESSAGE - Send the wanted operation.
+                    sendString(sd, recvString);  // CONTENT MESSAGE - send the operation details.
 
                     if (receiveIntegerNumber(sd) == 1) // INTEGER NUMBER - Receive the result of the ADD operation.
                     {
@@ -393,14 +391,14 @@ int main()
     {
         cout << "\nThe challenge sent is wrong!\n"
              << endl;
-        clientSuicide();
+        clientSuicide(); // The client terminates.
     }
     else
     {
 
         cout << "\nSomething went wrong!\n"
              << endl;
-        clientSuicide();
+        clientSuicide(); // The client terminates.
     }
 
     return 0;
