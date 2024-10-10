@@ -5,3 +5,5 @@ The messages can be inserted by the users.
 This application is a C++ only client-server application; it consists by a multithread server (server.cpp) and a client (client.cpp).
 
 This application treats the security like a priority, in fact it uses OpenSSL for every security-related operation.
+
+Comunications are secure thanks to a key-exchange protocol based on RSAE schema.
